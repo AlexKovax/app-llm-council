@@ -136,16 +136,65 @@ This strict format allows reliable parsing while still getting thoughtful evalua
 ### Relative Imports
 All backend modules use relative imports (e.g., `from .config import ...`) not absolute imports. This is critical for Python's module system to work correctly when running as `python -m backend.main`.
 
+### API Base URL (`frontend/src/api.js`)
+- `API_BASE` is set to `''` (empty string — relative URLs)
+- This is **critical** for production: requests go through Nginx reverse proxy, not directly to `localhost:8001`
+- In dev mode, Vite proxies `/api` → `http://localhost:8001` (configured in `vite.config.js`)
+- NEVER set `API_BASE` to an absolute URL like `http://localhost:8001` — it breaks production because the browser resolves it to the user's machine, not the server
+
+### Vite Configuration (`frontend/vite.config.js`)
+- `server.allowedHosts`: must include `llmcouncil.hosakka.com` for production
+- `server.proxy`: proxies `/api` → `http://localhost:8001` for local dev mode (Nginx handles this in production)
+- Both settings are safe for local dev and required for prod
+
 ### Port Configuration
 - Backend: 8001 (changed from 8000 to avoid conflict)
 - Frontend: 5173 (Vite default)
-- Update both `backend/main.py` and `frontend/src/api.js` if changing
+- If changing backend port, update: `backend/main.py`, `vite.config.js` proxy, and Nginx config on server
 
 ### Markdown Rendering
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
 ### Model Configuration
 Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is Gemini as chairman per user preference.
+
+## Deployment
+
+### Server Setup
+The server runs on a DigitalOcean Droplet (Debian) at `llmcouncil.hosakka.com`. The initial setup was done via a script at `/root/install.sh` on the server which:
+- Installs Node.js 20 LTS, Python/uv, Nginx, certbot (Let's Encrypt)
+- Clones the repo to `/opt/llm-council`
+- Creates systemd services: `llm-council-backend.service` and `llm-council-frontend.service`
+- Configures Nginx as reverse proxy with Basic Auth + HTTPS
+
+### Server Architecture
+```
+Browser (HTTPS)
+    ↓
+Nginx (:443, :80)
+    ├── /api/* → proxy_pass → Backend (:8001)
+    └── /*     → proxy_pass → Frontend Vite dev (:5173)
+```
+
+### Deploy Script (`deploy.sh`)
+Usage: `./deploy.sh`
+
+What it does:
+1. `rsync` source code to `/opt/llm-council` on the server
+2. Excludes: `.venv/`, `node_modules/`, `__pycache__/`, `.git/`, `.env`, `data/`, `CLAUDE.md`
+3. Runs `uv sync` on the server to update Python dependencies
+4. Restarts both systemd services
+
+### Critical: Never overwrite `.env` or `data/` on server
+- `.env` on the server contains the production `OPENROUTER_API_KEY` (set in the systemd service env and .env file)
+- `data/` contains production conversation data (JSON files)
+- The deploy script excludes both via rsync. If you intentionally change these, deploy them manually.
+
+### Post-deploy checklist
+- `systemctl status llm-council-backend llm-council-frontend` — both must be active
+- `journalctl -u llm-council-backend -n 20` — check for backend errors
+- `journalctl -u llm-council-frontend -n 20` — check for frontend errors
+- Visit `https://llmcouncil.hosakka.com` and verify the app loads
 
 ## Common Gotchas
 
