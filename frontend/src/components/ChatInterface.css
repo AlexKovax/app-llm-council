@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #ffffff;
+  background: var(--ivory);
 }
 
 .messages-container {
@@ -18,18 +18,21 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: var(--neutral-600);
   text-align: center;
 }
 
 .empty-state h2 {
   margin: 0 0 8px 0;
+  font-family: var(--font-heading);
   font-size: 24px;
-  color: #333;
+  font-weight: 600;
+  color: var(--carbon);
 }
 
 .empty-state p {
   margin: 0;
+  font-family: var(--font-body);
   font-size: 16px;
 }
 
@@ -45,18 +48,19 @@
 
 .export-btn {
   padding: 6px 14px;
-  background: #f5f5f5;
-  border: 1px solid #d0d0d0;
-  border-radius: 6px;
-  color: #555;
+  background: var(--cream);
+  border: 1px solid var(--cream-light);
+  border-radius: 0.5rem;
+  color: var(--neutral-700);
+  font-family: var(--font-mono);
   font-size: 12px;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
 
 .export-btn:hover {
-  background: #e8e8e8;
-  border-color: #bbb;
+  background: var(--cream-light);
+  border-color: var(--neutral-500);
 }
 
 .user-message,
@@ -65,20 +69,21 @@
 }
 
 .message-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--neutral-500);
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .user-message .message-content {
-  background: #f0f7ff;
+  background: var(--azur-light);
   padding: 16px;
-  border-radius: 8px;
-  border: 1px solid #d0e7ff;
-  color: #333;
+  border-radius: 1rem;
+  border: 1px solid var(--azur);
+  color: var(--carbon);
   line-height: 1.6;
   max-width: 80%;
   white-space: pre-wrap;
@@ -89,7 +94,8 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  color: #666;
+  color: var(--neutral-600);
+  font-family: var(--font-mono);
   font-size: 14px;
 }
 
@@ -99,10 +105,11 @@
   gap: 12px;
   padding: 16px;
   margin: 12px 0;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  color: #666;
+  background: var(--cream);
+  border-radius: 1rem;
+  border: 1px solid var(--cream-light);
+  color: var(--neutral-600);
+  font-family: var(--font-body);
   font-size: 14px;
   font-style: italic;
 }
@@ -110,8 +117,8 @@
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #e0e0e0;
-  border-top-color: #4a90e2;
+  border: 2px solid var(--cream-light);
+  border-top-color: var(--azur);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -127,19 +134,19 @@
   align-items: flex-end;
   gap: 12px;
   padding: 24px;
-  border-top: 1px solid #e0e0e0;
-  background: #fafafa;
+  border-top: 1px solid var(--cream-light);
+  background: var(--cream);
 }
 
 .message-input {
   flex: 1;
   padding: 14px;
-  background: #ffffff;
-  border: 1px solid #d0d0d0;
-  border-radius: 8px;
-  color: #333;
+  background: var(--ivory);
+  border: 1px solid var(--cream-light);
+  border-radius: 1rem;
+  color: var(--carbon);
   font-size: 15px;
-  font-family: inherit;
+  font-family: var(--font-body);
   line-height: 1.5;
   outline: none;
   resize: vertical;
@@ -148,38 +155,40 @@
 }
 
 .message-input:focus {
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  border-color: var(--azur);
+  box-shadow: 0 0 0 3px rgba(168, 216, 240, 0.2);
 }
 
 .message-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #f5f5f5;
+  background: var(--cream);
 }
 
 .send-button {
   padding: 14px 28px;
-  background: #4a90e2;
-  border: 1px solid #4a90e2;
-  border-radius: 8px;
-  color: #fff;
+  background: var(--carbon);
+  border: 1px solid var(--carbon);
+  border-radius: 1rem;
+  color: var(--ivory);
+  font-family: var(--font-body);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, opacity 0.2s;
   white-space: nowrap;
   align-self: flex-end;
 }
 
 .send-button:hover:not(:disabled) {
-  background: #357abd;
-  border-color: #357abd;
+  background: var(--terracotta);
+  border-color: var(--terracotta);
 }
 
 .send-button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
-  background: #ccc;
-  border-color: #ccc;
+  background: var(--cream-light);
+  border-color: var(--cream-light);
+  color: var(--neutral-500);
 }

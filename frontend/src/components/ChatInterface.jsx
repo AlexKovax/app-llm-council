@@ -47,8 +47,8 @@ export default function ChatInterface({
     return (
       <div className="chat-interface">
         <div className="empty-state">
-          <h2>Welcome to LLM Council</h2>
-          <p>Create a new conversation to get started</p>
+          <h2>LLM Council</h2>
+          <p>by PANTOMENO — Create a new conversation to get started</p>
         </div>
       </div>
     );
@@ -59,8 +59,8 @@ export default function ChatInterface({
       <div className="messages-container">
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
-            <h2>Start a conversation</h2>
-            <p>Ask a question to consult the LLM Council</p>
+            <h2>Consult the Council</h2>
+            <p>Ask a question — multiple LLMs will deliberate and synthesize an answer</p>
           </div>
         ) : (
           <>
