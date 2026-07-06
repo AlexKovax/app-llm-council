@@ -36,6 +36,23 @@
   border-color: #357abd;
 }
 
+.search-input {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
 .conversation-list {
   flex: 1;
   overflow-y: auto;
@@ -55,6 +72,9 @@
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .conversation-item:hover {
@@ -66,13 +86,99 @@
   border: 1px solid #4a90e2;
 }
 
+.conversation-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .conversation-title {
   color: #333;
   font-size: 14px;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversation-meta {
   color: #999;
   font-size: 12px;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 8px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.delete-btn:hover {
+  color: #e74c3c;
+  background: #fdd;
+}
+
+.delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.delete-confirm-text {
+  color: #e74c3c;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.delete-confirm-btn {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid;
+}
+
+.delete-yes {
+  background: #e74c3c;
+  border-color: #e74c3c;
+  color: #fff;
+}
+
+.delete-yes:hover {
+  background: #c0392b;
+}
+
+.delete-no {
+  background: #fff;
+  border-color: #ccc;
+  color: #666;
+}
+
+.delete-no:hover {
+  background: #f0f0f0;
+}
+
+.rename-form {
+  margin: 0;
+}
+
+.rename-input {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid #4a90e2;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #333;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 3px;
 }

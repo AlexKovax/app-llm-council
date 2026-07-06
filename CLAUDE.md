@@ -36,12 +36,24 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **`storage.py`**
 - JSON-based conversation storage in `data/conversations/`
-- Each conversation: `{id, created_at, messages[]}`
+- Each conversation: `{id, created_at, title, messages[]}`
 - Assistant messages contain: `{role, stage1, stage2, stage3}`
 - Note: metadata (label_to_model, aggregate_rankings) is NOT persisted to storage, only returned via API
+- `delete_conversation()`: Removes the JSON file from disk permanently (not soft-delete)
+- `update_conversation_title()`: Updates the title of an existing conversation
 
 **`main.py`**
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
+- API Endpoints:
+  - `GET /` — Health check
+  - `GET /api/conversations` — List all conversations (metadata only)
+  - `POST /api/conversations` — Create new conversation
+  - `GET /api/conversations/{id}` — Get full conversation
+  - `PATCH /api/conversations/{id}` — Rename conversation (body: `{title: "..."}`)
+  - `DELETE /api/conversations/{id}` — Delete conversation permanently
+  - `GET /api/conversations/{id}/export` — Export conversation as Markdown download
+  - `POST /api/conversations/{id}/message` — Send message (non-streaming)
+  - `POST /api/conversations/{id}/message/stream` — Send message (SSE streaming)
 - POST `/api/conversations/{id}/message` returns metadata in addition to stages
 - Metadata includes: label_to_model mapping and aggregate_rankings
 
@@ -49,13 +61,23 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **`App.jsx`**
 - Main orchestration: manages conversations list and current conversation
-- Handles message sending and metadata storage
+- Handles message sending, renaming, deletion, and metadata storage
+- `handleDeleteConversation(id)`: Deletes via API, updates conversation list, switches to next conversation if current was deleted
+- `handleRenameConversation(id, title)`: Renames via PATCH API, updates sidebar optimistically
 - Important: metadata is stored in the UI state for display but not persisted to backend JSON
 
 **`components/ChatInterface.jsx`**
 - Multiline textarea (3 rows, resizable)
 - Enter to send, Shift+Enter for new line
 - User messages wrapped in markdown-content class for padding
+- Export button (⬇ Export Markdown) appears in top-right when a conversation has messages, triggers download via `GET /api/.../export`
+
+**`components/Sidebar.jsx`**
+- Conversation list with active highlighting
+- "+ New Conversation" button at top
+- Search bar to filter conversations by title (client-side)
+- Double-click on a conversation title to rename inline (Enter to confirm, Escape to cancel)
+- Delete with confirmation: first click on × shows "Delete? Yes / No", second click confirms
 
 **`components/Stage1.jsx`**
 - Tab view of individual model responses
@@ -131,15 +153,16 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 2. **CORS Issues**: Frontend must match allowed origins in `main.py` CORS middleware
 3. **Ranking Parse Failures**: If models don't follow format, fallback regex extracts any "Response X" patterns in order
 4. **Missing Metadata**: Metadata is ephemeral (not persisted), only available in API responses
+  5. **Deleting active conversation**: When deleting the currently viewed conversation, the UI automatically switches to the next available one or returns to the welcome screen
 
 ## Future Enhancement Ideas
 
 - Configurable council/chairman via UI instead of config file
-- Streaming responses instead of batch loading
-- Export conversations to markdown/PDF
+- Delete individual messages from a conversation
 - Model performance analytics over time
 - Custom ranking criteria (not just accuracy/insight)
 - Support for reasoning models (o1, etc.) with special handling
+- Dark mode theme
 
 ## Testing Notes
 

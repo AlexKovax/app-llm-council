@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import { api } from '../api';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -30,10 +31,15 @@ export default function ChatInterface({
   };
 
   const handleKeyDown = (e) => {
-    // Submit on Enter (without Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
+    }
+  };
+
+  const handleExport = () => {
+    if (conversation) {
+      window.open(api.getExportUrl(conversation.id), '_blank');
     }
   };
 
@@ -57,7 +63,13 @@ export default function ChatInterface({
             <p>Ask a question to consult the LLM Council</p>
           </div>
         ) : (
-          conversation.messages.map((msg, index) => (
+          <>
+            <div className="export-bar">
+              <button className="export-btn" onClick={handleExport} title="Export as Markdown">
+                ⬇ Export Markdown
+              </button>
+            </div>
+            {conversation.messages.map((msg, index) => (
             <div key={index} className="message-group">
               {msg.role === 'user' ? (
                 <div className="user-message">
@@ -107,7 +119,8 @@ export default function ChatInterface({
                 </div>
               )}
             </div>
-          ))
+            ))}
+          </>
         )}
 
         {isLoading && (

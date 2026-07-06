@@ -2,15 +2,23 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, PlainTextResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import uuid
 import json
 import asyncio
+from datetime import datetime
 
 from . import storage
-from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .council import (
+    run_full_council,
+    generate_conversation_title,
+    stage1_collect_responses,
+    stage2_collect_rankings,
+    stage3_synthesize_final,
+    calculate_aggregate_rankings,
+)
 
 app = FastAPI(title="LLM Council API")
 
@@ -26,16 +34,25 @@ app.add_middleware(
 
 class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
+
     pass
 
 
 class SendMessageRequest(BaseModel):
     """Request to send a message in a conversation."""
+
     content: str
+
+
+class RenameConversationRequest(BaseModel):
+    """Request to rename a conversation."""
+
+    title: str
 
 
 class ConversationMetadata(BaseModel):
     """Conversation metadata for list view."""
+
     id: str
     created_at: str
     title: str
@@ -44,6 +61,7 @@ class ConversationMetadata(BaseModel):
 
 class Conversation(BaseModel):
     """Full conversation with all messages."""
+
     id: str
     created_at: str
     title: str
@@ -108,10 +126,7 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
 
     # Add assistant message with all stages
     storage.add_assistant_message(
-        conversation_id,
-        stage1_results,
-        stage2_results,
-        stage3_result
+        conversation_id, stage1_results, stage2_results, stage3_result
     )
 
     # Return the complete response with metadata
@@ -119,8 +134,106 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         "stage1": stage1_results,
         "stage2": stage2_results,
         "stage3": stage3_result,
-        "metadata": metadata
+        "metadata": metadata,
     }
+
+
+@app.delete("/api/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    """Delete a conversation."""
+    deleted = storage.delete_conversation(conversation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"status": "deleted", "id": conversation_id}
+
+
+@app.patch("/api/conversations/{conversation_id}")
+async def rename_conversation(conversation_id: str, request: RenameConversationRequest):
+    """Rename a conversation."""
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    storage.update_conversation_title(conversation_id, request.title)
+    return {"status": "renamed", "id": conversation_id, "title": request.title}
+
+
+@app.get("/api/conversations/{conversation_id}/export")
+async def export_conversation(conversation_id: str):
+    """Export a conversation as Markdown."""
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    md_lines = []
+    title = conversation.get("title", "Conversation")
+    md_lines.append(f"# {title}")
+    md_lines.append(f"*Created: {conversation['created_at']}*")
+    md_lines.append("")
+
+    for i, msg in enumerate(conversation["messages"]):
+        if msg["role"] == "user":
+            q_num = (i // 2) + 1
+            md_lines.append("---")
+            md_lines.append("")
+            md_lines.append(f"## Question {q_num}")
+            md_lines.append("")
+            md_lines.append(f"**User**: {msg['content']}")
+            md_lines.append("")
+        elif msg["role"] == "assistant":
+            stage1 = msg.get("stage1", [])
+            stage2 = msg.get("stage2", [])
+            stage3 = msg.get("stage3", {})
+
+            if stage1:
+                md_lines.append("### Stage 1: Individual Responses")
+                md_lines.append("")
+                for resp in stage1:
+                    model = resp.get("model", "Unknown")
+                    response = resp.get("response", "")
+                    reasoning = resp.get("reasoning_details")
+                    md_lines.append(f"#### {model}")
+                    md_lines.append("")
+                    if reasoning:
+                        md_lines.append(
+                            f"<details><summary>Reasoning</summary>\n\n{reasoning}\n\n</details>"
+                        )
+                        md_lines.append("")
+                    md_lines.append(response)
+                    md_lines.append("")
+
+            if stage2:
+                md_lines.append("### Stage 2: Peer Rankings")
+                md_lines.append("")
+                for rank in stage2:
+                    model = rank.get("model", "Unknown")
+                    ranking = rank.get("ranking", "")
+                    parsed = rank.get("parsed_ranking", [])
+                    md_lines.append(f"#### {model}'s Evaluation")
+                    md_lines.append("")
+                    md_lines.append(ranking)
+                    if parsed:
+                        md_lines.append("")
+                        md_lines.append(f"**Extracted Ranking**: {', '.join(parsed)}")
+                    md_lines.append("")
+
+            if stage3:
+                md_lines.append("### Stage 3: Final Synthesis")
+                md_lines.append("")
+                chairman = stage3.get("model", "Chairman")
+                chairman_response = stage3.get("response", "")
+                md_lines.append(f"*Chairman: {chairman}*")
+                md_lines.append("")
+                md_lines.append(chairman_response)
+                md_lines.append("")
+
+    markdown = "\n".join(md_lines)
+    return PlainTextResponse(
+        content=markdown,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f'attachment; filename="llm-council-{conversation_id[:8]}.md"'
+        },
+    )
 
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
@@ -145,7 +258,9 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             # Start title generation in parallel (don't await yet)
             title_task = None
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(request.content))
+                title_task = asyncio.create_task(
+                    generate_conversation_title(request.content)
+                )
 
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
@@ -154,13 +269,19 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 
             # Stage 2: Collect rankings
             yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
-            stage2_results, label_to_model = await stage2_collect_rankings(request.content, stage1_results)
-            aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
+            stage2_results, label_to_model = await stage2_collect_rankings(
+                request.content, stage1_results
+            )
+            aggregate_rankings = calculate_aggregate_rankings(
+                stage2_results, label_to_model
+            )
             yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}})}\n\n"
 
             # Stage 3: Synthesize final answer
             yield f"data: {json.dumps({'type': 'stage3_start'})}\n\n"
-            stage3_result = await stage3_synthesize_final(request.content, stage1_results, stage2_results)
+            stage3_result = await stage3_synthesize_final(
+                request.content, stage1_results, stage2_results
+            )
             yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
             # Wait for title generation if it was started
@@ -171,10 +292,7 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 
             # Save complete assistant message
             storage.add_assistant_message(
-                conversation_id,
-                stage1_results,
-                stage2_results,
-                stage3_result
+                conversation_id, stage1_results, stage2_results, stage3_result
             )
 
             # Send completion event
@@ -190,10 +308,11 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-        }
+        },
     )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)

@@ -57,6 +57,34 @@ function App() {
     setCurrentConversationId(id);
   };
 
+  const handleDeleteConversation = async (id) => {
+    try {
+      await api.deleteConversation(id);
+
+      setConversations((prev) => {
+        const remaining = prev.filter((c) => c.id !== id);
+        if (id === currentConversationId) {
+          setCurrentConversationId(remaining.length > 0 ? remaining[0].id : null);
+          setCurrentConversation(null);
+        }
+        return remaining;
+      });
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+  };
+
+  const handleRenameConversation = async (id, title) => {
+    try {
+      await api.renameConversation(id, title);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, title } : c))
+      );
+    } catch (error) {
+      console.error('Failed to rename conversation:', error);
+    }
+  };
+
   const handleSendMessage = async (content) => {
     if (!currentConversationId) return;
 
@@ -188,6 +216,8 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onRenameConversation={handleRenameConversation}
       />
       <ChatInterface
         conversation={currentConversation}
