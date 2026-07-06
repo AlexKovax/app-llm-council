@@ -92,13 +92,53 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **`components/Stage3.jsx`**
 - Final synthesized answer from chairman
-- Green-tinted background (#f0fff0) to highlight conclusion
+- Emerald-tinted background (Pantomeno design system) to highlight conclusion
 
-**Styling (`*.css`)**
-- Light mode theme (not dark mode)
-- Primary color: #4a90e2 (blue)
-- Global markdown styling in `index.css` with `.markdown-content` class
-- 12px padding on all markdown content to prevent cluttered appearance
+## Design System
+
+The UI adopts the **PANTOMENO** brand identity (https://www.pantomeno.com/).
+
+### Color Palette (CSS Custom Properties in `index.css`)
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--carbon` | `#1A1A1A` | Primary text, sidebar background, send button |
+| `--ivory` | `#FFFEF1` | Page background, card backgrounds |
+| `--cream` | `#F2F1E4` | Section backgrounds (stages, input form, code blocks) |
+| `--cream-light` | `#E5E1CF` | Borders, disabled states |
+| `--blush` | `#FFC7CD` | Delete/danger actions |
+| `--terracotta` | `#5B2E25` | Button hover state |
+| `--azur` | `#A8D8F0` | Primary accent: active tabs, focus rings, spinners, rankings |
+| `--azur-light` | `#D6EEF9` | User messages, aggregate rankings background |
+| `--emerald` | `#86ECB8` | Stage 3 border |
+| `--emerald-light` | `#C2F6D9` | Stage 3 background |
+| `--neutral-500` | `#8A8576` | Muted text, monospace labels |
+| `--neutral-600` | `#6B6759` | Secondary text, blockquotes |
+| `--neutral-700` | `#4D4940` | Export button text |
+
+### Typography
+
+| Role | Font | Usage |
+|------|------|-------|
+| Headings | `Space Grotesk` (Google Fonts) | Stage titles, app title, rankings, h1-h6 in markdown |
+| Body | `Onest` (Google Fonts) | Body text, buttons, inputs, descriptions |
+| Monospace | `Inconsolata` (Google Fonts) | Model names, labels, rankings, metadata, code |
+
+Fonts are loaded from Google Fonts in `index.html` and declared as CSS custom properties:
+- `--font-heading: 'Space Grotesk', sans-serif`
+- `--font-body: 'Onest', sans-serif`
+- `--font-mono: 'Inconsolata', monospace`
+
+### Layout Principles
+- **Sidebar**: Dark theme — carbon (`#1A1A1A`) background, ivory text, azur accents for active state
+- **Main area**: Light/ivory background with cream section backgrounds
+- **Border radius**: `1rem` (16px) for cards/stages, `0.5rem` (8px) for tabs/buttons
+- **No gradients**: Solid colors only, consistent with Pantomeno's design
+- **Dark/light contrast**: Sidebar (dark) vs main content (light) mirrors Pantomeno's alternating section themes
+- **Branding**: "LLM Council" title with "by PANTOMENO" subtitle in sidebar
+
+### CSS Architecture
+All styles use global CSS (no modules, no CSS-in-JS) with these custom properties defined in `index.css:root`. All component CSS files reference `var(--token)` — never hardcoded hex colors. This ensures consistency across the app.
 
 ## Key Design Decisions
 
