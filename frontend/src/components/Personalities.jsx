@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Avatar from './Avatar';
 import './Personalities.css';
 
 const EMPTY_FORM = { name: '', model: '', system_prompt: '', description: '' };
+const AVATAR_TIMEOUT_MS = 90_000;
 
-export default function Personalities({ personalities, models, onRefreshModels, onCreate, onUpdate, onDelete }) {
+export default function Personalities({ personalities, models, onRefreshModels, onCreate, onUpdate, onDelete, onRegenerateAvatar }) {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
@@ -11,6 +13,10 @@ export default function Personalities({ personalities, models, onRefreshModels, 
   const [error, setError] = useState('');
   const [refreshingModels, setRefreshingModels] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
+  const [regeneratingAvatar, setRegeneratingAvatar] = useState(null);
+  const [avatarError, setAvatarError] = useState('');
+  const [avatarElapsed, setAvatarElapsed] = useState(0);
+  const avatarTimerRef = useRef(null);
 
   const modelsByProvider = (() => {
     const groups = {};
@@ -105,6 +111,39 @@ export default function Personalities({ personalities, models, onRefreshModels, 
     setConfirmingDelete(null);
   };
 
+  const handleRegenerateAvatar = async (e, p) => {
+    e.stopPropagation();
+    setRegeneratingAvatar(p.id);
+    setAvatarError('');
+    setAvatarElapsed(0);
+    avatarTimerRef.current = setInterval(() => {
+      setAvatarElapsed((s) => s + 1);
+    }, 1000);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), AVATAR_TIMEOUT_MS);
+      await onRegenerateAvatar(p.id, { signal: controller.signal });
+      clearTimeout(timeout);
+    } catch (err) {
+      const msg = err.name === 'AbortError'
+        ? `Avatar generation timed out (>${Math.round(AVATAR_TIMEOUT_MS / 1000)}s). Try again.`
+        : (err.message || 'Failed to regenerate avatar');
+      setAvatarError(msg);
+      setTimeout(() => setAvatarError(''), 6000);
+    } finally {
+      clearInterval(avatarTimerRef.current);
+      avatarTimerRef.current = null;
+      setRegeneratingAvatar(null);
+      setAvatarElapsed(0);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (avatarTimerRef.current) clearInterval(avatarTimerRef.current);
+    };
+  }, []);
+
   return (
     <div className="personalities-view">
       <div className="personalities-header">
@@ -131,6 +170,7 @@ export default function Personalities({ personalities, models, onRefreshModels, 
       </div>
 
       {refreshMessage && <div className="refresh-message">{refreshMessage}</div>}
+      {avatarError && <div className="refresh-message avatar-error">{avatarError}</div>}
 
       {editingId && (
         <form className="personality-form" onSubmit={handleSubmit}>
@@ -215,10 +255,28 @@ export default function Personalities({ personalities, models, onRefreshModels, 
           personalities.map((p) => (
             <div key={p.id} className="personality-card">
               <div className="personality-card-header">
-                <div className="personality-name">
-                  {p.name}
+                <div className="personality-identity">
+                  <Avatar
+                    svg={p.avatar_svg}
+                    name={p.name}
+                    size={36}
+                    spinning={regeneratingAvatar === p.id}
+                  />
+                  <div className="personality-name">
+                    {p.name}
+                  </div>
                 </div>
                 <div className="personality-actions">
+                  <button
+                    className="personality-action-btn personality-regenerate"
+                    onClick={(e) => handleRegenerateAvatar(e, p)}
+                    disabled={regeneratingAvatar === p.id}
+                    title="Regenerate avatar (calls DeepSeek V4 Pro, may take 30-90s)"
+                  >
+                    {regeneratingAvatar === p.id
+                      ? `Generating… ${avatarElapsed}s`
+                      : '↻ Avatar'}
+                  </button>
                   <button
                     className="personality-action-btn"
                     onClick={() => startEdit(p)}

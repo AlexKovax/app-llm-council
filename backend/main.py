@@ -140,9 +140,9 @@ async def list_personalities_route():
 
 @app.post("/api/personalities")
 async def create_personality_route(payload: PersonalityBase):
-    """Create a new personality."""
+    """Create a new personality and auto-generate its SVG avatar."""
     try:
-        return personalities.create_personality(
+        return await personalities.create_personality(
             name=payload.name,
             model=payload.model,
             system_prompt=payload.system_prompt,
@@ -165,6 +165,15 @@ async def update_personality_route(personality_id: str, payload: PersonalityUpda
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Personality not found")
+    return updated
+
+
+@app.post("/api/personalities/{personality_id}/avatar")
+async def regenerate_personality_avatar_route(personality_id: str):
+    """Regenerate the SVG avatar for an existing personality via an LLM call."""
+    updated = await personalities.regenerate_avatar(personality_id)
     if updated is None:
         raise HTTPException(status_code=404, detail="Personality not found")
     return updated

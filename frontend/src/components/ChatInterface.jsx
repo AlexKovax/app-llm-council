@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import Avatar from './Avatar';
 import { api } from '../api';
 import './ChatInterface.css';
 
@@ -220,6 +221,7 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
           model: p.model,
           system_prompt: p.system_prompt,
           description: p.description || '',
+          avatar_svg: p.avatar_svg || '',
         }));
         // Chairman is a separate snapshot, independent of the lineup
         const chairmanP = personalities.find((p) => p.id === localChairmanId);
@@ -230,6 +232,7 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
               model: chairmanP.model,
               system_prompt: chairmanP.system_prompt,
               description: chairmanP.description || '',
+              avatar_svg: chairmanP.avatar_svg || '',
             }
           : null;
         await onSetLineup(conversation.id, {
@@ -260,7 +263,10 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
           <div className="config-models">
             {isPersonalities
               ? lineup.map((p) => (
-                  <span key={p.id} className="config-model">{p.name}</span>
+                  <span key={p.id} className="config-model">
+                    <Avatar svg={p.avatar_svg} name={p.name} size={18} />
+                    <span className="config-model-name">{p.name}</span>
+                  </span>
                 ))
               : config && config.council_models.map((model) => (
                   <span key={model} className="config-model">
@@ -275,7 +281,14 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
           <div className="config-models">
             <span className="config-model chairman">
               {isPersonalities
-                ? (chairman?.name || '—')
+                ? (
+                  <>
+                    {chairman && (
+                      <Avatar svg={chairman.avatar_svg} name={chairman.name} size={18} />
+                    )}
+                    <span className="config-model-name">{chairman?.name || '—'}</span>
+                  </>
+                )
                 : (config && (config.chairman_model.split('/')[1] || config.chairman_model))
               }
             </span>
@@ -359,7 +372,10 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
                         onChange={() => togglePersonality(p.id)}
                         disabled={saving}
                       />
-                      <div className="picker-card-name">{p.name}</div>
+                      <div className="picker-card-header-row">
+                        <Avatar svg={p.avatar_svg} name={p.name} size={28} />
+                        <div className="picker-card-name">{p.name}</div>
+                      </div>
                       <div className="picker-card-model mono">{p.model}</div>
                       {p.description && (
                         <div className="picker-card-desc">{p.description}</div>
@@ -386,6 +402,7 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
                         onChange={() => setLocalChairmanId(p.id)}
                         disabled={saving}
                       />
+                      <Avatar svg={p.avatar_svg} name={p.name} size={22} />
                       <span className="picker-radio-name">{p.name}</span>
                       {inLineup && <span className="picker-radio-tag mono">in lineup</span>}
                       <span className="picker-radio-model mono">{p.model}</span>

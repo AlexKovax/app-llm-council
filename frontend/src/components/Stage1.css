@@ -22,7 +22,10 @@
 }
 
 .tab {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
   background: var(--ivory);
   border: 1px solid var(--cream-light);
   border-radius: 0.5rem 0.5rem 0 0;

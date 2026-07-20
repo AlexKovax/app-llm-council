@@ -34,6 +34,11 @@ def _participant_display_name(p: Participant) -> str:
     return model.split("/")[1] if "/" in model else model
 
 
+def _participant_avatar(p: Participant) -> str:
+    """SVG avatar markup for a participant (empty string if none)."""
+    return p.get("avatar_svg") or ""
+
+
 def classic_participants() -> List[Participant]:
     """Build participants from the classic global config (no system prompts)."""
     return [{"name": None, "model": m, "system_prompt": None} for m in COUNCIL_MODELS]
@@ -77,6 +82,7 @@ async def stage1_collect_responses(
             stage1_results.append({
                 "model": model,
                 "display_name": _participant_display_name(participant),
+                "avatar_svg": _participant_avatar(participant),
                 "system_prompt": _participant_system_prompt(participant),
                 "response": response.get('content', ''),
             })
@@ -138,6 +144,7 @@ async def stage2_collect_rankings(
             stage2_results.append({
                 "model": model,
                 "display_name": _participant_display_name(participant),
+                "avatar_svg": _participant_avatar(participant),
                 "ranking": full_text,
                 "parsed_ranking": parsed,
             })
@@ -183,12 +190,14 @@ async def stage3_synthesize_final(
         return {
             "model": _participant_model(chairman),
             "display_name": _participant_display_name(chairman),
+            "avatar_svg": _participant_avatar(chairman),
             "response": "Error: Unable to generate final synthesis.",
         }
 
     return {
         "model": _participant_model(chairman),
         "display_name": _participant_display_name(chairman),
+        "avatar_svg": _participant_avatar(chairman),
         "response": response.get('content', ''),
     }
 

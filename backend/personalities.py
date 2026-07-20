@@ -7,17 +7,25 @@ a single list. On first start, a set of default personalities is seeded.
 
 import json
 import os
+import re
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 from .config import DATA_DIR
+from .openrouter import query_model
+from . import prompts
 
 
 # Personalities live in a separate file at the data root, not inside the
 # conversations directory (which is scanned for conversation files).
 PERSONALITIES_FILE = os.path.join(os.path.dirname(DATA_DIR.rstrip("/")), "personalities.json")
+
+# Model used for avatar generation. DeepSeek V4 Flash is fast and produces
+# clean SVG markup at low cost.
+AVATAR_MODEL = "deepseek/deepseek-v4-flash"
+AVATAR_TIMEOUT = 60.0
 
 
 def _ensure_data_dir() -> None:
@@ -49,6 +57,7 @@ def _new_personality(
     system_prompt: str,
     description: str = "",
     is_seed: bool = False,
+    avatar_svg: str = "",
 ) -> Dict[str, Any]:
     return {
         "id": str(uuid.uuid4()),
@@ -56,10 +65,72 @@ def _new_personality(
         "model": model,
         "system_prompt": system_prompt,
         "description": description,
+        "avatar_svg": avatar_svg,
         "is_seed": is_seed,
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
     }
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Strip ```...``` fences (with optional language tag) from LLM output."""
+    text = text.strip()
+    if not text.startswith("```"):
+        return text
+    # Remove opening fence (```svg, ```xml, ``` or similar)
+    text = re.sub(r"^```[a-zA-Z0-9]*\s*\n?", "", text)
+    # Remove closing fence
+    text = re.sub(r"\n?```\s*$", "", text)
+    return text.strip()
+
+
+def _sanitize_svg(svg: str) -> str:
+    """Light validation/sanitization of generated SVG markup.
+
+    Returns the cleaned SVG string, or "" if the input is not a valid-looking
+    SVG. We strip markdown fences, enforce <svg>...</svg> boundaries, and
+    reject anything containing forbidden tags (script/foreignObject/etc.).
+    """
+    if not svg:
+        return ""
+    svg = _strip_markdown_fences(svg)
+    # Find the <svg>...</svg> span (LLMs sometimes prepend a sentence)
+    match = re.search(r"<svg[\s>].*?</svg>", svg, re.DOTALL | re.IGNORECASE)
+    if not match:
+        return ""
+    svg = match.group(0)
+    # Reject forbidden tags (defense in depth — the prompt already forbids them)
+    forbidden = re.findall(
+        r"<(?:script|foreignObject|image|use)\b", svg, re.IGNORECASE
+    )
+    if forbidden:
+        return ""
+    # Reject base64 / data: URIs
+    if re.search(r"data:", svg, re.IGNORECASE):
+        return ""
+    return svg
+
+
+async def generate_personality_avatar(
+    name: str,
+    description: str,
+) -> str:
+    """Generate a monochrome SVG avatar for a personality via an LLM call.
+
+    Returns the SVG markup string, or "" if generation failed (graceful
+    degradation: the personality is still persisted without an avatar).
+    """
+    prompt = prompts.svg_avatar_prompt(name, description or "")
+    messages = [{"role": "user", "content": prompt}]
+    try:
+        response = await query_model(AVATAR_MODEL, messages, timeout=AVATAR_TIMEOUT)
+    except Exception as e:
+        print(f"Error generating avatar for {name!r}: {e}")
+        return ""
+    if response is None:
+        return ""
+    raw = response.get("content", "") or ""
+    return _sanitize_svg(raw)
 
 
 def list_personalities() -> List[Dict[str, Any]]:
@@ -77,13 +148,19 @@ def get_personality(personality_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def create_personality(
+async def create_personality(
     name: str,
     model: str,
     system_prompt: str,
     description: str = "",
 ) -> Dict[str, Any]:
-    """Create and persist a new personality."""
+    """Create and persist a new personality, then auto-generate its avatar.
+
+    The personality is persisted first (so it exists even if avatar generation
+    fails), then the avatar is generated via an LLM call and stored in the
+    `avatar_svg` field. If generation fails, the personality simply has an
+    empty avatar (graceful degradation).
+    """
     if not name or not name.strip():
         raise ValueError("Name is required")
     if not model or not model.strip():
@@ -100,6 +177,17 @@ def create_personality(
     personalities = _load_all()
     personalities.append(personality)
     _save_all(personalities)
+
+    # Auto-generate avatar (non-fatal if it fails)
+    avatar_svg = await generate_personality_avatar(
+        name=personality["name"],
+        description=personality["description"],
+    )
+    if avatar_svg:
+        personality["avatar_svg"] = avatar_svg
+        personality["updated_at"] = datetime.utcnow().isoformat()
+        _save_all(personalities)
+
     return personality
 
 
@@ -109,6 +197,7 @@ def update_personality(
     model: Optional[str] = None,
     system_prompt: Optional[str] = None,
     description: Optional[str] = None,
+    avatar_svg: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Update fields of a personality. Returns updated personality or None."""
     personalities = _load_all()
@@ -128,10 +217,32 @@ def update_personality(
                 p["system_prompt"] = system_prompt.strip()
             if description is not None:
                 p["description"] = description.strip()
+            if avatar_svg is not None:
+                p["avatar_svg"] = avatar_svg
             p["updated_at"] = datetime.utcnow().isoformat()
             _save_all(personalities)
             return p
     return None
+
+
+async def regenerate_avatar(personality_id: str) -> Optional[Dict[str, Any]]:
+    """Regenerate the avatar for an existing personality.
+
+    Reads the current name/description/system_prompt, calls the LLM, and
+    persists the new SVG. Returns the updated personality, or None if the
+    personality was not found. If generation fails, the existing avatar is
+    left untouched.
+    """
+    p = get_personality(personality_id)
+    if p is None:
+        return None
+    avatar_svg = await generate_personality_avatar(
+        name=p["name"],
+        description=p.get("description", ""),
+    )
+    if avatar_svg:
+        return update_personality(personality_id, avatar_svg=avatar_svg)
+    return p
 
 
 def delete_personality(personality_id: str) -> bool:

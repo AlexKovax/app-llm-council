@@ -213,6 +213,23 @@ export const api = {
   },
 
   /**
+   * Regenerate the SVG avatar for a personality via an LLM call.
+   * Returns the updated personality (with the new avatar_svg field).
+   * Pass { signal } in opts to support cancellation/timeout.
+   */
+  async regeneratePersonalityAvatar(id, opts = {}) {
+    const response = await fetch(
+      `${API_BASE}/api/personalities/${id}/avatar`,
+      { method: 'POST', signal: opts.signal }
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to regenerate avatar');
+    }
+    return response.json();
+  },
+
+  /**
    * Set the mode and personality lineup of a conversation.
    */
   async setConversationLineup(conversationId, { mode, lineup, chairman }) {

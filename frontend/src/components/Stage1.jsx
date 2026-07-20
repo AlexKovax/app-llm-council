@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import Avatar from './Avatar';
 import './Stage1.css';
 
 function displayName(resp) {
@@ -15,6 +16,8 @@ export default function Stage1({ responses }) {
     return null;
   }
 
+  const active = responses[activeTab];
+
   return (
     <div className="stage stage1">
       <h3 className="stage-title">Stage 1: Individual Responses</h3>
@@ -26,15 +29,16 @@ export default function Stage1({ responses }) {
             className={`tab ${activeTab === index ? 'active' : ''}`}
             onClick={() => setActiveTab(index)}
           >
-            {displayName(resp)}
+            <Avatar svg={resp.avatar_svg} name={displayName(resp)} size={16} />
+            <span>{displayName(resp)}</span>
           </button>
         ))}
       </div>
 
       <div className="tab-content">
-        <div className="model-name">{responses[activeTab].model}</div>
+        <div className="model-name">{active.model}</div>
         <div className="response-text markdown-content">
-          <ReactMarkdown>{responses[activeTab].response}</ReactMarkdown>
+          <ReactMarkdown>{active.response}</ReactMarkdown>
         </div>
       </div>
     </div>

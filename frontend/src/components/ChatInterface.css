@@ -71,7 +71,10 @@
 }
 
 .config-model {
-  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
   background: var(--ivory);
   border: 1px solid var(--cream-light);
   border-radius: 0.5rem;
@@ -83,6 +86,10 @@
 .config-model.chairman {
   background: var(--emerald-light);
   border-color: var(--emerald);
+}
+
+.config-model-name {
+  white-space: nowrap;
 }
 
 /* ---------- Lineup picker ---------- */
@@ -167,6 +174,12 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--carbon);
+}
+
+.picker-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .picker-card-model {

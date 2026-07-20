@@ -244,6 +244,13 @@ select.form-input {
   gap: 8px;
 }
 
+.personality-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .personality-name {
   font-family: var(--font-heading);
   font-size: 16px;
@@ -318,6 +325,26 @@ select.form-input {
 .personality-delete-yes:hover {
   background: #f0a0a8;
   border-color: #f0a0a8;
+  color: var(--carbon);
+}
+
+.personality-regenerate {
+  color: var(--neutral-500);
+}
+
+.personality-regenerate:hover:not(:disabled) {
+  color: var(--carbon);
+  background: var(--azur-light);
+}
+
+.personality-regenerate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.avatar-error {
+  background: var(--blush);
+  border-color: var(--blush);
   color: var(--carbon);
 }
 

@@ -98,6 +98,35 @@ Question: {user_query}
 Title:"""
 
 
+def svg_avatar_prompt(name: str, description: str) -> str:
+    """Build the prompt used to generate a monochrome SVG avatar for a personality.
+
+    The output is a single self-contained <svg> element with a fixed 64x64
+    viewBox, transparent background, and a single ink color (currentColor so
+    the UI can theme it). The avatar is a stylized face that evokes the
+    personality's essence. No scripts, no external resources, no markdown
+    fences, no prose around the SVG.
+    """
+    desc_part = f"\nDescription: {description}" if description else ""
+    return f"""You are an iconic portrait illustrator. Generate a single SVG image of a stylized human face that represents the following personality.
+
+Personality: {name}{desc_part}
+
+STRICT REQUIREMENTS:
+- Output ONLY the raw SVG markup. No markdown, no code fences, no explanation, no prose before or after.
+- The SVG must start with `<svg` and end with `</svg>`.
+- Use viewBox="0 0 64 64" and width="64" height="64".
+- Background MUST be transparent (no <rect> filling the whole canvas, no background color).
+- Use a SINGLE ink color: fill="currentColor" (or stroke="currentColor"). Do not use any other color.
+- Draw a human face (head, eyes, nose, mouth, optional hair/beard/headwear/glasses) styled to evoke the personality's identity and era.
+- Style: minimalist flat portrait icon, bold readable silhouette, 2-4 simple shapes. Think iconic pictogram portrait, not detailed painting.
+- The face should be recognizable and distinctive (e.g. beret + beard for Che, turtleneck + glasses for Jobs, toga + laurel for Plato).
+- Forbidden tags: <script>, <foreignObject>, <use>, <image>, <style> with external URLs, base64 data URIs, any kind of animation.
+- Keep the markup under 1.5 KB. No comments, no XML declaration, no xmlns:xlink.
+
+Return only the SVG:"""
+
+
 # Static descriptions of each prompt, used by the settings API to render them
 # in the UI without needing to invoke the builders with real inputs. Each
 # entry contains a stable `id`, a human-readable `label`, the raw `template`
@@ -182,6 +211,28 @@ PROMPTS_METADATA = [
             "The title should be concise and descriptive. Do not use quotes or punctuation in the title.\n\n"
             "Question: {user_query}\n\n"
             "Title:"
+        ),
+    },
+    {
+        "id": "svg_avatar",
+        "label": "Personality SVG avatar prompt",
+        "description": (
+            "Sent to deepseek-v4-flash whenever a personality is created (or "
+            "its avatar regenerated). Asks for a single self-contained "
+            "monochrome SVG face (64x64, transparent background, "
+            "currentColor ink) that evokes the personality's identity. "
+            "Stored in the `avatar_svg` field and snapshotted into "
+            "conversations."
+        ),
+        "template": (
+            "You are an iconic portrait illustrator. Generate a single SVG image of a stylized human face that represents the following personality.\n\n"
+            "Personality: {name}\n"
+            "Description: {description}\n\n"
+            "STRICT REQUIREMENTS:\n"
+            "- Output ONLY the raw SVG markup...\n"
+            "- viewBox=\"0 0 64 64\", transparent background, fill=\"currentColor\"...\n"
+            "- Draw a human face (head, eyes, nose, mouth, optional hair/beard/headwear/glasses)...\n"
+            "- Forbidden: <script>, <foreignObject>, base64, animations...\n"
         ),
     },
 ]

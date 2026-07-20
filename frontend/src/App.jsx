@@ -150,6 +150,12 @@ function App() {
     await loadPersonalities();
   };
 
+  const handleRegenerateAvatar = async (id, opts = {}) => {
+    const updated = await api.regeneratePersonalityAvatar(id, opts);
+    await loadPersonalities();
+    return updated;
+  };
+
   const handleRefreshModels = async () => {
     const data = await api.refreshModels();
     setModels(data.models || []);
@@ -302,6 +308,7 @@ function App() {
           onCreate={handleCreatePersonality}
           onUpdate={handleUpdatePersonality}
           onDelete={handleDeletePersonality}
+          onRegenerateAvatar={handleRegenerateAvatar}
         />
       ) : view === 'settings' ? (
         <Settings onLoadPrompts={handleLoadPrompts} />

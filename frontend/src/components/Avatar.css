@@ -1,0 +1,30 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: transparent;
+  user-select: none;
+  vertical-align: middle;
+}
+
+.avatar-fallback {
+  background: var(--cream-light);
+  border: 1px solid var(--cream-light);
+  overflow: hidden;
+}
+
+.avatar-fallback-inner {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--neutral-700);
+  letter-spacing: 0;
+}
+
+@keyframes avatar-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
