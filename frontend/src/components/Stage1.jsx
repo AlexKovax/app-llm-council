@@ -2,6 +2,12 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './Stage1.css';
 
+function displayName(resp) {
+  if (resp.display_name) return resp.display_name;
+  const m = resp.model || '';
+  return m.split('/')[1] || m;
+}
+
 export default function Stage1({ responses }) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -20,7 +26,7 @@ export default function Stage1({ responses }) {
             className={`tab ${activeTab === index ? 'active' : ''}`}
             onClick={() => setActiveTab(index)}
           >
-            {resp.model.split('/')[1] || resp.model}
+            {displayName(resp)}
           </button>
         ))}
       </div>

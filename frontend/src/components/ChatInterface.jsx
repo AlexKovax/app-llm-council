@@ -11,6 +11,8 @@ export default function ChatInterface({
   onSendMessage,
   isLoading,
   config,
+  personalities,
+  onSetLineup,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -55,34 +57,25 @@ export default function ChatInterface({
     );
   }
 
+  const isEmpty = conversation.messages.length === 0;
+  const isFresh = isEmpty;
+
   return (
     <div className="chat-interface">
       <div className="messages-container">
-        {conversation.messages.length === 0 ? (
+        {isEmpty ? (
           <div className="empty-state">
             <h2>Consult the Council</h2>
             <p>Ask a question — multiple LLMs will deliberate and synthesize an answer</p>
-            {config && (
-              <div className="council-config">
-                <div className="config-section">
-                  <div className="config-label">Stage 1 &amp; 2 — Council Members</div>
-                  <div className="config-models">
-                    {config.council_models.map((model) => (
-                      <span key={model} className="config-model">
-                        {model.split('/')[1] || model}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="config-section">
-                  <div className="config-label">Stage 3 — Chairman</div>
-                  <div className="config-models">
-                    <span className="config-model chairman">
-                      {(config.chairman_model.split('/')[1] || config.chairman_model)}
-                    </span>
-                  </div>
-                </div>
-              </div>
+
+            {isFresh && (
+              <LineupPicker
+                key={conversation.id}
+                conversation={conversation}
+                config={config}
+                personalities={personalities || []}
+                onSetLineup={onSetLineup}
+              />
             )}
           </div>
         ) : (
@@ -145,18 +138,9 @@ export default function ChatInterface({
             ))}
           </>
         )}
-
-        {isLoading && (
-          <div className="loading-indicator">
-            <div className="spinner"></div>
-            <span>Consulting the council...</span>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
       </div>
 
-      {conversation.messages.length === 0 && (
+      {isEmpty && (
         <form className="input-form" onSubmit={handleSubmit}>
           <textarea
             className="message-input"
@@ -175,6 +159,266 @@ export default function ChatInterface({
             Send
           </button>
         </form>
+      )}
+    </div>
+  );
+}
+
+function LineupPicker({ conversation, config, personalities, onSetLineup }) {
+  const initialMode = conversation.mode || 'classic';
+  const lineup = conversation.lineup || [];
+  const initialChairman = conversation.chairman;
+
+  // If the conversation already has a personalities lineup applied, start in
+  // summary mode. Otherwise (classic default or fresh), start in edit mode.
+  const hasAppliedPersonalities =
+    initialMode === 'personalities' && lineup.length > 0;
+  const [isEditing, setIsEditing] = useState(!hasAppliedPersonalities);
+
+  const [localMode, setLocalMode] = useState(initialMode);
+  const [selectedIds, setSelectedIds] = useState(
+    new Set(lineup.map((p) => p.id))
+  );
+  const [localChairmanId, setLocalChairmanId] = useState(initialChairman?.id || null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const togglePersonality = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleApply = async () => {
+    setError('');
+    const chosen = personalities.filter((p) => selectedIds.has(p.id));
+
+    if (localMode !== 'classic' && chosen.length < 2) {
+      setError('Select at least 2 personalities (or switch to Classic mode).');
+      return;
+    }
+    if (localMode === 'personalities' && !localChairmanId) {
+      setError('Pick a chairman personality.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (localMode === 'classic') {
+        await onSetLineup(conversation.id, { mode: 'classic', lineup: [], chairman: null });
+      } else {
+        // Snapshot the personalities into the conversation's lineup
+        const lineupSnapshot = chosen.map((p) => ({
+          id: p.id,
+          name: p.name,
+          model: p.model,
+          system_prompt: p.system_prompt,
+          description: p.description || '',
+        }));
+        // Chairman is a separate snapshot, independent of the lineup
+        const chairmanP = personalities.find((p) => p.id === localChairmanId);
+        const chairmanSnapshot = chairmanP
+          ? {
+              id: chairmanP.id,
+              name: chairmanP.name,
+              model: chairmanP.model,
+              system_prompt: chairmanP.system_prompt,
+              description: chairmanP.description || '',
+            }
+          : null;
+        await onSetLineup(conversation.id, {
+          mode: 'personalities',
+          lineup: lineupSnapshot,
+          chairman: chairmanSnapshot,
+        });
+      }
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.message || 'Failed to apply lineup');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---- Summary view (after Apply or when lineup already set) ----
+  if (!isEditing) {
+    const isPersonalities = conversation.mode === 'personalities' && lineup.length > 0;
+    const chairman = isPersonalities ? conversation.chairman : null;
+
+    return (
+      <div className="council-config lineup-summary">
+        <div className="config-section">
+          <div className="config-label">
+            {isPersonalities ? 'Stage 1 & 2 — Personalities' : 'Stage 1 & 2 — Council Members'}
+          </div>
+          <div className="config-models">
+            {isPersonalities
+              ? lineup.map((p) => (
+                  <span key={p.id} className="config-model">{p.name}</span>
+                ))
+              : config && config.council_models.map((model) => (
+                  <span key={model} className="config-model">
+                    {model.split('/')[1] || model}
+                  </span>
+                ))
+            }
+          </div>
+        </div>
+        <div className="config-section">
+          <div className="config-label">Stage 3 — Chairman</div>
+          <div className="config-models">
+            <span className="config-model chairman">
+              {isPersonalities
+                ? (chairman?.name || '—')
+                : (config && (config.chairman_model.split('/')[1] || config.chairman_model))
+              }
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="apply-lineup-btn"
+          onClick={() => { setIsEditing(true); setError(''); }}
+        >
+          Edit lineup
+        </button>
+      </div>
+    );
+  }
+
+  // ---- Edit view (picker) ----
+  return (
+    <div className="council-config lineup-picker">
+      <div className="config-section lineup-mode-section">
+        <div className="config-label">Council mode</div>
+        <div className="mode-buttons">
+          <button
+            type="button"
+            className={`mode-btn ${localMode === 'classic' ? 'active' : ''}`}
+            onClick={() => { setLocalMode('classic'); setError(''); }}
+            disabled={saving}
+          >
+            Classic
+          </button>
+          <button
+            type="button"
+            className={`mode-btn ${localMode === 'personalities' ? 'active' : ''}`}
+            onClick={() => { setLocalMode('personalities'); setError(''); }}
+            disabled={saving}
+          >
+            Personalities
+          </button>
+        </div>
+      </div>
+
+      {localMode === 'classic' ? (
+        <div className="config-section">
+          <div className="config-label">Stage 1 &amp; 2 — Council Members</div>
+          <div className="config-models">
+            {config && config.council_models.map((model) => (
+              <span key={model} className="config-model">
+                {model.split('/')[1] || model}
+              </span>
+            ))}
+          </div>
+          <div className="config-section">
+            <div className="config-label">Stage 3 — Chairman</div>
+            <div className="config-models">
+              <span className="config-model chairman">
+                {config && (config.chairman_model.split('/')[1] || config.chairman_model)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="config-section">
+            <div className="config-label">
+              Stage 1 &amp; 2 — Personalities ({selectedIds.size} selected)
+            </div>
+            {personalities.length === 0 ? (
+              <p className="picker-empty">No personalities yet. Create some in the Personalities view.</p>
+            ) : (
+              <div className="personality-picker-grid">
+                {personalities.map((p) => {
+                  const selected = selectedIds.has(p.id);
+                  return (
+                    <label
+                      key={p.id}
+                      className={`picker-card ${selected ? 'selected' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => togglePersonality(p.id)}
+                        disabled={saving}
+                      />
+                      <div className="picker-card-name">{p.name}</div>
+                      <div className="picker-card-model mono">{p.model}</div>
+                      {p.description && (
+                        <div className="picker-card-desc">{p.description}</div>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {personalities.length > 0 && (
+            <div className="config-section">
+              <div className="config-label">Stage 3 — Chairman (any personality)</div>
+              <div className="chairman-radio-list">
+                {personalities.map((p) => {
+                  const inLineup = selectedIds.has(p.id);
+                  return (
+                    <label key={p.id} className={`picker-radio ${localChairmanId === p.id ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="chairman"
+                        checked={localChairmanId === p.id}
+                        onChange={() => setLocalChairmanId(p.id)}
+                        disabled={saving}
+                      />
+                      <span className="picker-radio-name">{p.name}</span>
+                      {inLineup && <span className="picker-radio-tag mono">in lineup</span>}
+                      <span className="picker-radio-model mono">{p.model}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {error && <div className="picker-error">{error}</div>}
+      {localMode === 'personalities' && (
+        <>
+          <button
+            type="button"
+            className="apply-lineup-btn"
+            onClick={handleApply}
+            disabled={saving || selectedIds.size < 2 || !localChairmanId}
+          >
+            {saving ? 'Applying…' : 'Apply lineup'}
+          </button>
+          <p className="picker-hint">
+            The lineup is snapshot-saved on this conversation. Editing a personality later
+            won't change conversations that already use it.
+          </p>
+        </>
+      )}
+      {localMode === 'classic' && (
+        <p className="picker-hint">
+          Classic mode uses the default council. Just type your question below to start.
+        </p>
       )}
     </div>
   );

@@ -1,0 +1,352 @@
+.personalities-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.personalities-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.personalities-header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.refresh-models-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--cream-light);
+  border-radius: 0.5rem;
+  color: var(--neutral-700);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.refresh-models-btn:hover:not(:disabled) {
+  background: var(--cream);
+  color: var(--carbon);
+  border-color: var(--neutral-500);
+}
+
+.refresh-models-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-message {
+  padding: 8px 12px;
+  background: var(--azur-light);
+  border: 1px solid var(--azur);
+  border-radius: 0.5rem;
+  color: var(--carbon);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.personalities-header h2 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--carbon);
+}
+
+.personalities-subtitle {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neutral-600);
+  margin: 0;
+  max-width: 460px;
+  line-height: 1.5;
+}
+
+.new-personality-btn {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  background: var(--carbon);
+  color: var(--ivory);
+  border: 1px solid var(--carbon);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.new-personality-btn:hover {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+}
+
+.personality-form {
+  background: var(--cream);
+  border: 1px solid var(--cream-light);
+  border-radius: 1rem;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.personality-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row label {
+  flex: 1;
+}
+
+.form-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--neutral-600);
+}
+
+.form-input {
+  padding: 8px 10px;
+  border: 1px solid var(--cream-light);
+  border-radius: 0.5rem;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--carbon);
+  background: var(--ivory);
+  outline: none;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-input.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.form-input:focus {
+  border-color: var(--azur);
+  box-shadow: 0 0 0 2px rgba(168, 216, 240, 0.15);
+}
+
+select.form-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234D4940' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+.form-error {
+  color: var(--terracotta);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-btn {
+  padding: 8px 14px;
+  border-radius: 0.5rem;
+  font-size: 13px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid;
+}
+
+.form-btn-primary {
+  background: var(--carbon);
+  color: var(--ivory);
+  border-color: var(--carbon);
+}
+
+.form-btn-primary:hover {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+}
+
+.form-btn-secondary {
+  background: transparent;
+  color: var(--neutral-700);
+  border-color: var(--cream-light);
+}
+
+.form-btn-secondary:hover {
+  background: var(--ivory);
+}
+
+.personalities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.no-personalities {
+  padding: 24px;
+  text-align: center;
+  color: var(--neutral-500);
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--cream);
+  border-radius: 1rem;
+}
+
+.personality-card {
+  background: var(--cream);
+  border: 1px solid var(--cream-light);
+  border-radius: 1rem;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.personality-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.personality-name {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--carbon);
+}
+
+.personality-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.personality-prompt-toggle {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--neutral-700);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.personality-prompt-toggle:hover {
+  background: var(--ivory);
+  color: var(--carbon);
+}
+
+.personality-action-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--neutral-700);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.personality-action-btn:hover {
+  background: var(--ivory);
+  color: var(--carbon);
+}
+
+.personality-delete {
+  color: var(--neutral-500);
+}
+
+.personality-delete:hover {
+  color: var(--terracotta);
+  background: rgba(255, 199, 205, 0.3);
+}
+
+.personality-delete-confirm-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--terracotta);
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+.personality-delete-yes {
+  background: var(--blush);
+  border-color: var(--blush);
+  color: var(--carbon);
+}
+
+.personality-delete-yes:hover {
+  background: #f0a0a8;
+  border-color: #f0a0a8;
+  color: var(--carbon);
+}
+
+.personality-model {
+  font-size: 12px;
+  color: var(--neutral-700);
+}
+
+.personality-description {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neutral-700);
+  font-style: italic;
+}
+
+.personality-prompt {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neutral-700);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-top: 4px;
+  border-top: 1px dashed var(--cream-light);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}

@@ -121,6 +121,110 @@ export const api = {
   },
 
   /**
+   * List all personalities.
+   */
+  async listPersonalities() {
+    const response = await fetch(`${API_BASE}/api/personalities`);
+    if (!response.ok) {
+      throw new Error('Failed to list personalities');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get the cached list of OpenRouter models (filtered by provider).
+   */
+  async listModels() {
+    const response = await fetch(`${API_BASE}/api/models`);
+    if (!response.ok) {
+      throw new Error('Failed to list models');
+    }
+    return response.json();
+  },
+
+  /**
+   * Refresh the OpenRouter model cache (calls the live API).
+   */
+  async refreshModels() {
+    const response = await fetch(`${API_BASE}/api/models/refresh`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to refresh models');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new personality.
+   */
+  async createPersonality({ name, model, system_prompt, description }) {
+    const response = await fetch(`${API_BASE}/api/personalities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, model, system_prompt, description }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create personality');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a personality (partial).
+   */
+  async updatePersonality(id, fields) {
+    const response = await fetch(`${API_BASE}/api/personalities/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update personality');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a personality.
+   */
+  async deletePersonality(id) {
+    const response = await fetch(`${API_BASE}/api/personalities/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete personality');
+    }
+    return response.json();
+  },
+
+  /**
+   * Set the mode and personality lineup of a conversation.
+   */
+  async setConversationLineup(conversationId, { mode, lineup, chairman }) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/lineup`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          lineup,
+          chairman,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to set conversation lineup');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message and receive streaming updates.
    * @param {string} conversationId - The conversation ID
    * @param {string} content - The message content

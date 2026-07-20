@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import Personalities from './components/Personalities';
 import { api } from './api';
 import './App.css';
 
@@ -10,19 +11,9 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [config, setConfig] = useState(null);
-
-  // Load conversations and council config on mount
-  useEffect(() => {
-    loadConversations();
-    loadConfig();
-  }, []);
-
-  // Load conversation details when selected
-  useEffect(() => {
-    if (currentConversationId) {
-      loadConversation(currentConversationId);
-    }
-  }, [currentConversationId]);
+  const [view, setView] = useState('conversations');
+  const [personalities, setPersonalities] = useState([]);
+  const [models, setModels] = useState([]);
 
   const loadConversations = async () => {
     try {
@@ -42,6 +33,24 @@ function App() {
     }
   };
 
+  const loadPersonalities = async () => {
+    try {
+      const ps = await api.listPersonalities();
+      setPersonalities(ps);
+    } catch (error) {
+      console.error('Failed to load personalities:', error);
+    }
+  };
+
+  const loadModels = async () => {
+    try {
+      const data = await api.listModels();
+      setModels(data.models || []);
+    } catch (error) {
+      console.error('Failed to load models:', error);
+    }
+  };
+
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
@@ -51,14 +60,31 @@ function App() {
     }
   };
 
+  // Load conversations and council config on mount
+  useEffect(() => {
+    loadConversations();
+    loadConfig();
+    loadPersonalities();
+    loadModels();
+  }, []);
+
+  // Load conversation details when selected
+  useEffect(() => {
+    if (currentConversationId) {
+      loadConversation(currentConversationId);
+    }
+  }, [currentConversationId]);
+
   const handleNewConversation = async () => {
     try {
       const newConv = await api.createConversation();
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0 },
+        { id: newConv.id, created_at: newConv.created_at, message_count: 0, mode: 'classic' },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
+      setCurrentConversation(newConv);
+      setView('conversations');
     } catch (error) {
       console.error('Failed to create conversation:', error);
     }
@@ -66,6 +92,7 @@ function App() {
 
   const handleSelectConversation = (id) => {
     setCurrentConversationId(id);
+    setView('conversations');
   };
 
   const handleDeleteConversation = async (id) => {
@@ -94,6 +121,38 @@ function App() {
     } catch (error) {
       console.error('Failed to rename conversation:', error);
     }
+  };
+
+  const handleSetLineup = async (conversationId, { mode, lineup, chairman }) => {
+    const updated = await api.setConversationLineup(conversationId, { mode, lineup, chairman });
+    setCurrentConversation(updated);
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, mode: updated.mode } : c))
+    );
+    return updated;
+  };
+
+  const handleCreatePersonality = async (data) => {
+    const created = await api.createPersonality(data);
+    await loadPersonalities();
+    return created;
+  };
+
+  const handleUpdatePersonality = async (id, fields) => {
+    const updated = await api.updatePersonality(id, fields);
+    await loadPersonalities();
+    return updated;
+  };
+
+  const handleDeletePersonality = async (id) => {
+    await api.deletePersonality(id);
+    await loadPersonalities();
+  };
+
+  const handleRefreshModels = async () => {
+    const data = await api.refreshModels();
+    setModels(data.models || []);
+    return data;
   };
 
   const handleSendMessage = async (content) => {
@@ -229,13 +288,28 @@ function App() {
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
         onRenameConversation={handleRenameConversation}
+        view={view}
+        onViewChange={setView}
       />
-      <ChatInterface
-        conversation={currentConversation}
-        onSendMessage={handleSendMessage}
-        isLoading={isLoading}
-        config={config}
-      />
+      {view === 'personalities' ? (
+        <Personalities
+          personalities={personalities}
+          models={models}
+          onRefreshModels={handleRefreshModels}
+          onCreate={handleCreatePersonality}
+          onUpdate={handleUpdatePersonality}
+          onDelete={handleDeletePersonality}
+        />
+      ) : (
+        <ChatInterface
+          conversation={currentConversation}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+          config={config}
+          personalities={personalities}
+          onSetLineup={handleSetLineup}
+        />
+      )}
     </div>
   );
 }

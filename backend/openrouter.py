@@ -8,7 +8,8 @@ from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
 async def query_model(
     model: str,
     messages: List[Dict[str, str]],
-    timeout: float = 120.0
+    timeout: float = 120.0,
+    system_prompt: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Query a single model via OpenRouter API.
@@ -17,6 +18,7 @@ async def query_model(
         model: OpenRouter model identifier (e.g., "openai/gpt-4o")
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
+        system_prompt: Optional system prompt prepended to the messages
 
     Returns:
         Response dict with 'content' and optional 'reasoning_details', or None if failed
@@ -26,9 +28,16 @@ async def query_model(
         "Content-Type": "application/json",
     }
 
+    final_messages = list(messages)
+    if system_prompt:
+        final_messages = [
+            {"role": "system", "content": system_prompt},
+            *final_messages,
+        ]
+
     payload = {
         "model": model,
-        "messages": messages,
+        "messages": final_messages,
     }
 
     try:
@@ -55,22 +64,36 @@ async def query_model(
 
 async def query_models_parallel(
     models: List[str],
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]],
+    system_prompts: Optional[List[Optional[str]]] = None,
 ) -> Dict[str, Optional[Dict[str, Any]]]:
     """
-    Query multiple models in parallel.
+    Query multiple models in parallel, optionally with per-model system prompts.
 
     Args:
         models: List of OpenRouter model identifiers
         messages: List of message dicts to send to each model
+        system_prompts: Optional list of system prompts, one per model.
+            If provided, must have the same length as `models`. Pass None
+            or empty string for a model that should receive no system prompt.
 
     Returns:
         Dict mapping model identifier to response dict (or None if failed)
     """
     import asyncio
 
+    if system_prompts is None:
+        system_prompts = [None] * len(models)
+    if len(system_prompts) != len(models):
+        raise ValueError(
+            "system_prompts must have the same length as models"
+        )
+
     # Create tasks for all models
-    tasks = [query_model(model, messages) for model in models]
+    tasks = [
+        query_model(model, messages, system_prompt=prompt)
+        for model, prompt in zip(models, system_prompts)
+    ]
 
     # Wait for all to complete
     responses = await asyncio.gather(*tasks)
