@@ -11,6 +11,7 @@ import asyncio
 from datetime import datetime
 
 from . import storage
+from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 from .council import (
     run_full_council,
     generate_conversation_title,
@@ -72,6 +73,15 @@ class Conversation(BaseModel):
 async def root():
     """Health check endpoint."""
     return {"status": "ok", "service": "LLM Council API"}
+
+
+@app.get("/api/config")
+async def get_config():
+    """Get the council configuration (models used for deliberation)."""
+    return {
+        "council_models": COUNCIL_MODELS,
+        "chairman_model": CHAIRMAN_MODEL,
+    }
 
 
 @app.get("/api/conversations", response_model=List[ConversationMetadata])

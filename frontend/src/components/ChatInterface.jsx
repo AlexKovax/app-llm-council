@@ -10,6 +10,7 @@ export default function ChatInterface({
   conversation,
   onSendMessage,
   isLoading,
+  config,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -61,6 +62,28 @@ export default function ChatInterface({
           <div className="empty-state">
             <h2>Consult the Council</h2>
             <p>Ask a question — multiple LLMs will deliberate and synthesize an answer</p>
+            {config && (
+              <div className="council-config">
+                <div className="config-section">
+                  <div className="config-label">Stage 1 &amp; 2 — Council Members</div>
+                  <div className="config-models">
+                    {config.council_models.map((model) => (
+                      <span key={model} className="config-model">
+                        {model.split('/')[1] || model}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="config-section">
+                  <div className="config-label">Stage 3 — Chairman</div>
+                  <div className="config-models">
+                    <span className="config-model chairman">
+                      {(config.chairman_model.split('/')[1] || config.chairman_model)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>

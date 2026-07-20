@@ -9,10 +9,12 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [config, setConfig] = useState(null);
 
-  // Load conversations on mount
+  // Load conversations and council config on mount
   useEffect(() => {
     loadConversations();
+    loadConfig();
   }, []);
 
   // Load conversation details when selected
@@ -28,6 +30,15 @@ function App() {
       setConversations(convs);
     } catch (error) {
       console.error('Failed to load conversations:', error);
+    }
+  };
+
+  const loadConfig = async () => {
+    try {
+      const cfg = await api.getConfig();
+      setConfig(cfg);
+    } catch (error) {
+      console.error('Failed to load config:', error);
     }
   };
 
@@ -223,6 +234,7 @@ function App() {
         conversation={currentConversation}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
+        config={config}
       />
     </div>
   );

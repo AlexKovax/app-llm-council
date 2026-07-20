@@ -46,6 +46,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
 - API Endpoints:
   - `GET /` — Health check
+  - `GET /api/config` — Council configuration (council_models + chairman_model), used by the frontend to display the model lineup on new conversations
   - `GET /api/conversations` — List all conversations (metadata only)
   - `POST /api/conversations` — Create new conversation
   - `GET /api/conversations/{id}` — Get full conversation
@@ -71,6 +72,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Enter to send, Shift+Enter for new line
 - User messages wrapped in markdown-content class for padding
 - Export button (⬇ Export Markdown) appears in top-right when a conversation has messages, triggers download via `GET /api/.../export`
+- Empty state (new conversation, no messages) displays the council lineup fetched from `GET /api/config`: council members (Stages 1 & 2) as mono chips on cream card, chairman chip with emerald background (matching Stage 3 styling)
 
 **`components/Sidebar.jsx`**
 - Conversation list with active highlighting
@@ -196,7 +198,7 @@ All backend modules use relative imports (e.g., `from .config import ...`) not a
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
 ### Model Configuration
-Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is Gemini as chairman per user preference.
+Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is GPT-5.5 as chairman per user preference.
 
 ## Deployment
 
@@ -218,6 +220,8 @@ Nginx (:443, :80)
 
 ### Deploy Script (`deploy.sh`)
 Usage: `./deploy.sh`
+
+**IMPORTANT: Always commit (and push) all code changes BEFORE deploying.** Production must never run uncommitted code — this guarantees the deployed state is reproducible and traceable in git history. If `git status` shows modified files, commit them first.
 
 What it does:
 1. `rsync` source code to `/opt/llm-council` on the server
