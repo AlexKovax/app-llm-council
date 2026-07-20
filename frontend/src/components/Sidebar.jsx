@@ -68,6 +68,19 @@ export default function Sidebar({
       )
     : conversations;
 
+  const formatDate = (isoString) => {
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -129,7 +142,13 @@ export default function Sidebar({
                       {conv.title || 'New Conversation'}
                     </div>
                     <div className="conversation-meta">
-                      {conv.message_count} messages
+                      <span>{conv.message_count} messages</span>
+                      {conv.created_at && (
+                        <>
+                          <span className="meta-sep">·</span>
+                          <span>{formatDate(conv.created_at)}</span>
+                        </>
+                      )}
                     </div>
                   </>
                 )}

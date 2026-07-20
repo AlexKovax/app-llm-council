@@ -126,6 +126,13 @@
   color: var(--neutral-500);
   font-family: var(--font-mono);
   font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-sep {
+  opacity: 0.6;
 }
 
 .delete-btn {
