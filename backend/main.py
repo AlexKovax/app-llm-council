@@ -10,7 +10,7 @@ import json
 import asyncio
 from datetime import datetime
 
-from . import storage, personalities, models
+from . import storage, personalities, models, prompts
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 from .council import (
     run_full_council,
@@ -196,6 +196,16 @@ async def refresh_models_route():
         return await models.refresh_models()
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+@app.get("/api/settings/prompts")
+async def list_prompts_route():
+    """Return the master prompt templates used by the council (read-only)."""
+    return {"prompts": prompts.list_prompts()}
 
 
 # ---------------------------------------------------------------------------

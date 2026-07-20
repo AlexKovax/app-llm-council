@@ -9,6 +9,7 @@ expressed as participants with no system prompt, built from the global config.
 from typing import List, Dict, Any, Tuple, Optional
 from .openrouter import query_models_parallel, query_model
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
+from . import prompts
 
 
 Participant = Dict[str, Any]
@@ -117,41 +118,7 @@ async def stage2_collect_rankings(
     }
 
     # Build the ranking prompt
-    responses_text = "\n\n".join([
-        f"Response {label}:\n{result['response']}"
-        for label, result in zip(labels, stage1_results)
-    ])
-
-    ranking_prompt = f"""You are evaluating different responses to the following question:
-
-Question: {user_query}
-
-Here are the responses from different models (anonymized):
-
-{responses_text}
-
-Your task:
-1. First, evaluate each response individually. For each response, explain what it does well and what it does poorly.
-2. Then, at the very end of your response, provide a final ranking.
-
-IMPORTANT: Your final ranking MUST be formatted EXACTLY as follows:
-- Start with the line "FINAL RANKING:" (all caps, with colon)
-- Then list the responses from best to worst as a numbered list
-- Each line should be: number, period, space, then ONLY the response label (e.g., "1. Response A")
-- Do not add any other text or explanations in the ranking section
-
-Example of the correct format for your ENTIRE response:
-
-Response A provides good detail on X but misses Y...
-Response B is accurate but lacks depth on Z...
-Response C offers the most comprehensive answer...
-
-FINAL RANKING:
-1. Response C
-2. Response A
-3. Response B
-
-Now provide your evaluation and ranking:"""
+    ranking_prompt = prompts.stage2_ranking_prompt(user_query, stage1_results)
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
@@ -200,32 +167,7 @@ async def stage3_synthesize_final(
         chairman = classic_chairman()
 
     # Build comprehensive context for chairman
-    stage1_text = "\n\n".join([
-        f"Participant: {result.get('display_name', result['model'])}\nResponse: {result['response']}"
-        for result in stage1_results
-    ])
-
-    stage2_text = "\n\n".join([
-        f"Participant: {result.get('display_name', result['model'])}\nRanking: {result['ranking']}"
-        for result in stage2_results
-    ])
-
-    chairman_prompt = f"""You are the Chairman of an LLM Council. Multiple AI participants have provided responses to a user's question, and then ranked each other's responses.
-
-Original Question: {user_query}
-
-STAGE 1 - Individual Responses:
-{stage1_text}
-
-STAGE 2 - Peer Rankings:
-{stage2_text}
-
-Your task as Chairman is to synthesize all of this information into a single, comprehensive, accurate answer to the user's original question. Consider:
-- The individual responses and their insights
-- The peer rankings and what they reveal about response quality
-- Any patterns of agreement or disagreement
-
-Provide a clear, well-reasoned final answer that represents the council's collective wisdom:"""
+    chairman_prompt = prompts.stage3_chairman_prompt(user_query, stage1_results, stage2_results)
 
     messages = [{"role": "user", "content": chairman_prompt}]
 
@@ -342,13 +284,7 @@ async def generate_conversation_title(user_query: str) -> str:
     Returns:
         A short title (3-5 words)
     """
-    title_prompt = f"""Generate a very short title (3-5 words maximum) that summarizes the following question.
-The title should be concise and descriptive. Do not use quotes or punctuation in the title.
-
-Question: {user_query}
-
-Title:"""
-
+    title_prompt = prompts.title_generation_prompt(user_query)
     messages = [{"role": "user", "content": title_prompt}]
 
     # Use gemini-2.5-flash for title generation (fast and cheap)

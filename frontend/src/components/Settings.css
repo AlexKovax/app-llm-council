@@ -1,0 +1,115 @@
+.settings-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.settings-header h2 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--carbon);
+}
+
+.settings-subtitle {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neutral-600);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.settings-error {
+  color: var(--terracotta);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 8px 12px;
+  background: rgba(255, 199, 205, 0.3);
+  border: 1px solid var(--blush);
+  border-radius: 0.5rem;
+}
+
+.settings-loading,
+.settings-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--neutral-500);
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--cream);
+  border-radius: 1rem;
+}
+
+.prompt-card {
+  background: var(--cream);
+  border: 1px solid var(--cream-light);
+  border-radius: 1rem;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prompt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.prompt-card-label {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--carbon);
+}
+
+.prompt-toggle {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--neutral-700);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.prompt-toggle:hover {
+  background: var(--ivory);
+  color: var(--carbon);
+}
+
+.prompt-card-description {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neutral-700);
+  line-height: 1.5;
+}
+
+.prompt-template {
+  margin: 4px 0 0 0;
+  padding: 12px;
+  background: var(--ivory);
+  border: 1px solid var(--cream-light);
+  border-radius: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--carbon);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-height: 360px;
+  overflow-y: auto;
+}

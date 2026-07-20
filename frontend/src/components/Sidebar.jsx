@@ -210,6 +210,16 @@ export default function Sidebar({
           )}
         </div>
       )}
+
+      <div className="sidebar-footer">
+        <button
+          className={`settings-btn ${view === 'settings' ? 'active' : ''}`}
+          onClick={() => onViewChange('settings')}
+          title="Settings"
+        >
+          ⚙ Settings
+        </button>
+      </div>
     </div>
   );
 }

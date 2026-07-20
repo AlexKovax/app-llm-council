@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import Personalities from './components/Personalities';
+import Settings from './components/Settings';
 import { api } from './api';
 import './App.css';
 
@@ -155,6 +156,8 @@ function App() {
     return data;
   };
 
+  const handleLoadPrompts = async () => api.getSettingsPrompts();
+
   const handleSendMessage = async (content) => {
     if (!currentConversationId) return;
 
@@ -300,6 +303,8 @@ function App() {
           onUpdate={handleUpdatePersonality}
           onDelete={handleDeletePersonality}
         />
+      ) : view === 'settings' ? (
+        <Settings onLoadPrompts={handleLoadPrompts} />
       ) : (
         <ChatInterface
           conversation={currentConversation}

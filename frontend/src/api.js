@@ -157,6 +157,17 @@ export const api = {
   },
 
   /**
+   * Get the council master prompts (read-only).
+   */
+  async getSettingsPrompts() {
+    const response = await fetch(`${API_BASE}/api/settings/prompts`);
+    if (!response.ok) {
+      throw new Error('Failed to load settings prompts');
+    }
+    return response.json();
+  },
+
+  /**
    * Create a new personality.
    */
   async createPersonality({ name, model, system_prompt, description }) {
