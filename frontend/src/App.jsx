@@ -156,6 +156,12 @@ function App() {
     return updated;
   };
 
+  const handleUploadAvatar = async (id, file) => {
+    const updated = await api.uploadPersonalityAvatar(id, file);
+    await loadPersonalities();
+    return updated;
+  };
+
   const handleRefreshModels = async () => {
     const data = await api.refreshModels();
     setModels(data.models || []);
@@ -309,6 +315,7 @@ function App() {
           onUpdate={handleUpdatePersonality}
           onDelete={handleDeletePersonality}
           onRegenerateAvatar={handleRegenerateAvatar}
+          onUploadAvatar={handleUploadAvatar}
         />
       ) : view === 'settings' ? (
         <Settings onLoadPrompts={handleLoadPrompts} />

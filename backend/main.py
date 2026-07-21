@@ -97,6 +97,17 @@ class PersonalityUpdate(BaseModel):
     description: Optional[str] = None
 
 
+class AvatarUploadRequest(BaseModel):
+    """Request body for uploading an avatar as a base64 data URI.
+
+    The frontend reads the chosen file with FileReader.readAsDataURL and
+    sends the resulting `data:<mime>;base64,<...>` string here. The backend
+    validates the MIME type and size before storing it.
+    """
+
+    data_uri: str
+
+
 class LineupRequest(BaseModel):
     """Request to set a conversation's mode and lineup.
 
@@ -145,7 +156,12 @@ async def list_personalities_route():
 
 @app.post("/api/personalities")
 async def create_personality_route(payload: PersonalityBase):
-    """Create a new personality and auto-generate its SVG avatar."""
+    """Create a new personality.
+
+    The personality is persisted with an empty avatar. Use the
+    `/avatar` (LLM generation) or `/avatar/upload` (image upload)
+    endpoints afterwards to set an avatar on demand.
+    """
     try:
         return await personalities.create_personality(
             name=payload.name,
@@ -179,6 +195,26 @@ async def update_personality_route(personality_id: str, payload: PersonalityUpda
 async def regenerate_personality_avatar_route(personality_id: str):
     """Regenerate the SVG avatar for an existing personality via an LLM call."""
     updated = await personalities.regenerate_avatar(personality_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Personality not found")
+    return updated
+
+
+@app.post("/api/personalities/{personality_id}/avatar/upload")
+async def upload_personality_avatar_route(
+    personality_id: str, payload: AvatarUploadRequest
+):
+    """Upload an image file as the avatar for a personality.
+
+    The body is JSON `{ "data_uri": "data:image/png;base64,..." }`. This is
+    on demand only — it never triggers an LLM call. The data URI is stored
+    verbatim in the `avatar_svg` field (which holds either SVG markup for
+    generated avatars or a data URI for uploaded images).
+    """
+    try:
+        updated = personalities.upload_avatar(personality_id, payload.data_uri)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if updated is None:
         raise HTTPException(status_code=404, detail="Personality not found")
     return updated

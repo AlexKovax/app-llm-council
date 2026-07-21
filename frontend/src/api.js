@@ -230,6 +230,33 @@ export const api = {
   },
 
   /**
+   * Upload an image file as the avatar for a personality.
+   * The file is read as a base64 data URL on the client side and POSTed
+   * as JSON. No LLM call is made. Returns the updated personality.
+   */
+  async uploadPersonalityAvatar(id, file) {
+    const dataUri = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+    const response = await fetch(
+      `${API_BASE}/api/personalities/${id}/avatar/upload`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data_uri: dataUri }),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to upload avatar');
+    }
+    return response.json();
+  },
+
+  /**
    * Set the mode and personality lineup of a conversation.
    */
   async setConversationLineup(conversationId, { mode, lineup, chairman }) {

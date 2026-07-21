@@ -22,12 +22,17 @@ export default function Avatar({ svg, name, size = 32, tone = 'ink', spinning = 
     ...(spinning ? { animation: 'avatar-spin 1.1s linear infinite' } : {}),
   };
 
-  if (svg && svg.trim()) {
-    const themed = svg.replace(/currentColor/g, color);
-    const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(themed)}`;
+  const raw = svg && svg.trim();
+  if (raw) {
+    // Uploaded images are stored as `data:image/...;base64,...` URIs and
+    // are rendered verbatim. Generated avatars are SVG markup that we
+    // themify via currentColor and URL-encode into a data URI.
+    const src = raw.startsWith('data:')
+      ? raw
+      : `data:image/svg+xml;utf8,${encodeURIComponent(raw.replace(/currentColor/g, color))}`;
     return (
       <img
-        src={dataUri}
+        src={src}
         alt={name ? `${name} avatar` : 'avatar'}
         className={`avatar ${className}`}
         style={style}

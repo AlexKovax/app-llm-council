@@ -5,7 +5,7 @@ import './Personalities.css';
 const EMPTY_FORM = { name: '', model: '', system_prompt: '', description: '' };
 const AVATAR_TIMEOUT_MS = 90_000;
 
-export default function Personalities({ personalities, models, onRefreshModels, onCreate, onUpdate, onDelete, onRegenerateAvatar }) {
+export default function Personalities({ personalities, models, onRefreshModels, onCreate, onUpdate, onDelete, onRegenerateAvatar, onUploadAvatar }) {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
@@ -16,7 +16,10 @@ export default function Personalities({ personalities, models, onRefreshModels, 
   const [regeneratingAvatar, setRegeneratingAvatar] = useState(null);
   const [avatarError, setAvatarError] = useState('');
   const [avatarElapsed, setAvatarElapsed] = useState(0);
+  const [uploadingAvatar, setUploadingAvatar] = useState(null);
   const avatarTimerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const pendingUploadIdRef = useRef(null);
 
   const modelsByProvider = (() => {
     const groups = {};
@@ -135,6 +138,46 @@ export default function Personalities({ personalities, models, onRefreshModels, 
       avatarTimerRef.current = null;
       setRegeneratingAvatar(null);
       setAvatarElapsed(0);
+    }
+  };
+
+  const handleUploadClick = (e, p) => {
+    e.stopPropagation();
+    if (uploadingAvatar) return;
+    pendingUploadIdRef.current = p.id;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    const id = pendingUploadIdRef.current;
+    pendingUploadIdRef.current = null;
+    if (!file || !id) return;
+
+    const accepted = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!accepted.includes(file.type)) {
+      setAvatarError(`Unsupported file type: ${file.type || 'unknown'}. Use PNG, JPEG, WebP, GIF, or SVG.`);
+      setTimeout(() => setAvatarError(''), 6000);
+      return;
+    }
+    if (file.size > 1_000_000) {
+      setAvatarError(`File too large: ${(file.size / 1000).toFixed(0)} KB. Max 1000 KB.`);
+      setTimeout(() => setAvatarError(''), 6000);
+      return;
+    }
+
+    setUploadingAvatar(id);
+    setAvatarError('');
+    try {
+      await onUploadAvatar(id, file);
+    } catch (err) {
+      setAvatarError(err.message || 'Failed to upload avatar');
+      setTimeout(() => setAvatarError(''), 6000);
+    } finally {
+      setUploadingAvatar(null);
     }
   };
 
@@ -268,19 +311,9 @@ export default function Personalities({ personalities, models, onRefreshModels, 
                 </div>
                 <div className="personality-actions">
                   <button
-                    className="personality-action-btn personality-regenerate"
-                    onClick={(e) => handleRegenerateAvatar(e, p)}
-                    disabled={regeneratingAvatar === p.id}
-                    title="Regenerate avatar (calls DeepSeek V4 Pro, may take 30-90s)"
-                  >
-                    {regeneratingAvatar === p.id
-                      ? `Generating… ${avatarElapsed}s`
-                      : '↻ Avatar'}
-                  </button>
-                  <button
                     className="personality-action-btn"
                     onClick={() => startEdit(p)}
-                    title="Edit"
+                    title="Edit name, model, prompt, description"
                   >
                     Edit
                   </button>
@@ -304,7 +337,7 @@ export default function Personalities({ personalities, models, onRefreshModels, 
                     <button
                       className="personality-action-btn personality-delete"
                       onClick={(e) => handleDeleteClick(e, p.id)}
-                      title="Delete"
+                      title="Delete this personality"
                     >
                       Delete
                     </button>
@@ -315,6 +348,29 @@ export default function Personalities({ personalities, models, onRefreshModels, 
               {p.description && (
                 <div className="personality-description">{p.description}</div>
               )}
+              <div className="personality-avatar-section">
+                <span className="personality-avatar-label">Avatar</span>
+                <div className="personality-avatar-actions">
+                  <button
+                    className="personality-action-btn personality-regenerate"
+                    onClick={(e) => handleRegenerateAvatar(e, p)}
+                    disabled={regeneratingAvatar === p.id || uploadingAvatar !== null}
+                    title="Generate an SVG avatar via LLM (calls DeepSeek V4 Flash, may take 30-90s)"
+                  >
+                    {regeneratingAvatar === p.id
+                      ? `Generating… ${avatarElapsed}s`
+                      : '↻ Generate'}
+                  </button>
+                  <button
+                    className="personality-action-btn personality-upload"
+                    onClick={(e) => handleUploadClick(e, p)}
+                    disabled={regeneratingAvatar !== null || uploadingAvatar !== null}
+                    title="Upload an image file from your computer (PNG, JPEG, WebP, GIF, SVG — max 1 MB)"
+                  >
+                    {uploadingAvatar === p.id ? 'Uploading…' : '⇪ Upload image'}
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
                 className="personality-prompt-toggle"
@@ -331,6 +387,13 @@ export default function Personalities({ personalities, models, onRefreshModels, 
           ))
         )}
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
     </div>
   );
 }

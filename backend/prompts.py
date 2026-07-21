@@ -217,12 +217,13 @@ PROMPTS_METADATA = [
         "id": "svg_avatar",
         "label": "Personality SVG avatar prompt",
         "description": (
-            "Sent to deepseek-v4-flash whenever a personality is created (or "
-            "its avatar regenerated). Asks for a single self-contained "
-            "monochrome SVG face (64x64, transparent background, "
-            "currentColor ink) that evokes the personality's identity. "
-            "Stored in the `avatar_svg` field and snapshotted into "
-            "conversations."
+            "Sent to deepseek-v4-flash on demand when the user regenerates a "
+            "personality's avatar via the ↻ Avatar button. Asks for a single "
+            "self-contained monochrome SVG face (64x64, transparent "
+            "background, currentColor ink) that evokes the personality's "
+            "identity. Stored in the `avatar_svg` field and snapshotted into "
+            "conversations. Avatar generation is opt-in: creating a "
+            "personality does NOT trigger an LLM call."
         ),
         "template": (
             "You are an iconic portrait illustrator. Generate a single SVG image of a stylized human face that represents the following personality.\n\n"

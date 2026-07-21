@@ -264,6 +264,30 @@ select.form-input {
   gap: 4px;
 }
 
+.personality-avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  margin-top: 2px;
+}
+
+.personality-avatar-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--neutral-500);
+  flex-shrink: 0;
+}
+
+.personality-avatar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .personality-prompt-toggle {
   align-self: flex-start;
   background: none;
@@ -338,6 +362,20 @@ select.form-input {
 }
 
 .personality-regenerate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.personality-upload {
+  color: var(--neutral-500);
+}
+
+.personality-upload:hover:not(:disabled) {
+  color: var(--carbon);
+  background: var(--emerald-light);
+}
+
+.personality-upload:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
