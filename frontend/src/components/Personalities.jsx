@@ -17,6 +17,7 @@ export default function Personalities({ personalities, models, onRefreshModels, 
   const [avatarError, setAvatarError] = useState('');
   const [avatarElapsed, setAvatarElapsed] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const avatarTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const pendingUploadIdRef = useRef(null);
@@ -69,6 +70,7 @@ export default function Personalities({ personalities, models, onRefreshModels, 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setError('');
 
     if (!form.name.trim() || !form.model.trim() || !form.system_prompt.trim()) {
@@ -76,6 +78,7 @@ export default function Personalities({ personalities, models, onRefreshModels, 
       return;
     }
 
+    setSubmitting(true);
     try {
       if (editingId === 'new') {
         await onCreate({
@@ -95,6 +98,8 @@ export default function Personalities({ personalities, models, onRefreshModels, 
       cancel();
     } catch (err) {
       setError(err.message || 'Save failed');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -279,10 +284,18 @@ export default function Personalities({ personalities, models, onRefreshModels, 
           </label>
           {error && <div className="form-error">{error}</div>}
           <div className="form-actions">
-            <button type="submit" className="form-btn form-btn-primary">
-              {editingId === 'new' ? 'Create' : 'Save'}
+            <button type="submit" className="form-btn form-btn-primary" disabled={submitting}>
+              {submitting && <span className="btn-spinner" />}
+              {editingId === 'new'
+                ? (submitting ? 'Creating…' : 'Create')
+                : (submitting ? 'Saving…' : 'Save')}
             </button>
-            <button type="button" className="form-btn form-btn-secondary" onClick={cancel}>
+            <button
+              type="button"
+              className="form-btn form-btn-secondary"
+              onClick={cancel}
+              disabled={submitting}
+            >
               Cancel
             </button>
           </div>

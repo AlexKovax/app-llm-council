@@ -193,9 +193,12 @@ select.form-input {
   background: var(--carbon);
   color: var(--ivory);
   border-color: var(--carbon);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.form-btn-primary:hover {
+.form-btn-primary:hover:not(:disabled) {
   background: var(--terracotta);
   border-color: var(--terracotta);
 }
@@ -206,8 +209,27 @@ select.form-input {
   border-color: var(--cream-light);
 }
 
-.form-btn-secondary:hover {
+.form-btn-secondary:hover:not(:disabled) {
   background: var(--ivory);
+}
+
+.form-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 254, 241, 0.3);
+  border-top-color: var(--ivory);
+  border-radius: 50%;
+  animation: btn-spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
 }
 
 .personalities-list {
