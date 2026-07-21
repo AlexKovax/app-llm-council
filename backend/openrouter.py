@@ -5,6 +5,32 @@ from typing import List, Dict, Any, Optional
 from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
 
 
+def _extract_error_message(exc: Exception) -> str:
+    """Best-effort extraction of a human-readable error message from an httpx exception.
+
+    OpenRouter returns JSON bodies like {"error": {"message": "...", "code": 404}}
+    on failures. We try to surface that message; otherwise we fall back to the
+    raw response text or the exception string.
+    """
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response is not None:
+        try:
+            body = exc.response.json()
+            err = body.get("error")
+            if isinstance(err, dict) and err.get("message"):
+                return str(err["message"])
+            if isinstance(err, str) and err:
+                return err
+            if isinstance(body, dict) and body.get("message"):
+                return str(body["message"])
+        except Exception:
+            pass
+        text = (exc.response.text or "").strip()
+        if text:
+            return text[:500]
+        return f"HTTP {exc.response.status_code}"
+    return str(exc)
+
+
 async def query_model(
     model: str,
     messages: List[Dict[str, str]],
@@ -15,13 +41,17 @@ async def query_model(
     Query a single model via OpenRouter API.
 
     Args:
-        model: OpenRouter model identifier (e.g., "openai/gpt-4o")
+        model: OpenRouter model identifier (e.g. "openai/gpt-4o")
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
         system_prompt: Optional system prompt prepended to the messages
 
     Returns:
-        Response dict with 'content' and optional 'reasoning_details', or None if failed
+        Response dict with 'content' and optional 'reasoning_details'. On
+        failure, returns a dict with 'content' set to None and an 'error'
+        field describing what went wrong (so callers can surface it to the
+        UI instead of failing silently). Returns None only if the request
+        could not even be attempted (e.g. empty messages).
     """
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -58,8 +88,12 @@ async def query_model(
             }
 
     except Exception as e:
-        print(f"Error querying model {model}: {e}")
-        return None
+        # Surface the error so the council can include it in the stage
+        # results and the UI can show which model failed and why.
+        return {
+            'content': None,
+            'error': _extract_error_message(e),
+        }
 
 
 async def query_models_parallel(

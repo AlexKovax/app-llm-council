@@ -98,7 +98,7 @@ class PersonalityUpdate(BaseModel):
 
 
 class LineupRequest(BaseModel):
-    """Request to set a conversation's mode and personality lineup.
+    """Request to set a conversation's mode and lineup.
 
     The `lineup` is a list of participant dicts for Stage 1 & 2, each
     containing at least `id`, `name`, `model`, and `system_prompt` keys.
@@ -106,6 +106,11 @@ class LineupRequest(BaseModel):
     need to be in the lineup. Both are snapshot-stored on the conversation
     so reusing it later always reflects the state at creation time, even
     if the underlying personality is later edited or deleted.
+
+    Both modes support a lineup: in "personalities" mode it references
+    personality snapshots; in "classic" mode it references plain model
+    snapshots (subset of COUNCIL_MODELS). An empty lineup in "classic"
+    mode resets the conversation to the global config defaults.
     """
 
     mode: str  # "classic" or "personalities"
@@ -278,6 +283,20 @@ async def set_conversation_lineup(conversation_id: str, payload: LineupRequest):
                 status_code=400,
                 detail="A chairman personality is required in personalities mode",
             )
+    elif payload.mode == "classic":
+        # Classic mode may carry an explicit lineup (subset of COUNCIL_MODELS
+        # plus a chairman). An empty lineup resets to the global config defaults.
+        if payload.lineup:
+            if len(payload.lineup) < 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Classic lineup needs at least 2 participants",
+                )
+            if not payload.chairman or not payload.chairman.get("model"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="A chairman model is required when a classic lineup is set",
+                )
 
     updated = storage.set_conversation_lineup(
         conversation_id,
@@ -384,7 +403,8 @@ async def export_conversation(conversation_id: str):
                 for resp in stage1:
                     display = resp.get("display_name") or resp.get("model", "Unknown")
                     model = resp.get("model", "")
-                    response = resp.get("response", "")
+                    response = resp.get("response")
+                    error = resp.get("error")
                     reasoning = resp.get("reasoning_details")
                     md_lines.append(f"#### {display} ({model})")
                     md_lines.append("")
@@ -393,8 +413,12 @@ async def export_conversation(conversation_id: str):
                             f"<details><summary>Reasoning</summary>\n\n{reasoning}\n\n</details>"
                         )
                         md_lines.append("")
-                    md_lines.append(response)
-                    md_lines.append("")
+                    if error:
+                        md_lines.append(f"> **Error:** {error}")
+                        md_lines.append("")
+                    elif response:
+                        md_lines.append(response)
+                        md_lines.append("")
 
             if stage2:
                 md_lines.append("### Stage 2: Peer Rankings")
@@ -402,26 +426,36 @@ async def export_conversation(conversation_id: str):
                 for rank in stage2:
                     display = rank.get("display_name") or rank.get("model", "Unknown")
                     model = rank.get("model", "")
-                    ranking = rank.get("ranking", "")
+                    ranking = rank.get("ranking")
+                    error = rank.get("error")
                     parsed = rank.get("parsed_ranking", [])
                     md_lines.append(f"#### {display} ({model})'s Evaluation")
                     md_lines.append("")
-                    md_lines.append(ranking)
-                    if parsed:
+                    if error:
+                        md_lines.append(f"> **Error:** {error}")
                         md_lines.append("")
-                        md_lines.append(f"**Extracted Ranking**: {', '.join(parsed)}")
-                    md_lines.append("")
+                    elif ranking:
+                        md_lines.append(ranking)
+                        if parsed:
+                            md_lines.append("")
+                            md_lines.append(f"**Extracted Ranking**: {', '.join(parsed)}")
+                        md_lines.append("")
 
             if stage3:
                 md_lines.append("### Stage 3: Final Synthesis")
                 md_lines.append("")
                 chairman_display = stage3.get("display_name") or stage3.get("model", "Chairman")
                 chairman_model = stage3.get("model", "")
-                chairman_response = stage3.get("response", "")
+                chairman_response = stage3.get("response")
+                chairman_error = stage3.get("error")
                 md_lines.append(f"*Chairman: {chairman_display} ({chairman_model})*")
                 md_lines.append("")
-                md_lines.append(chairman_response)
-                md_lines.append("")
+                if chairman_error:
+                    md_lines.append(f"> **Error:** {chairman_error}")
+                    md_lines.append("")
+                elif chairman_response:
+                    md_lines.append(chairman_response)
+                    md_lines.append("")
 
     markdown = "\n".join(md_lines)
     return PlainTextResponse(
@@ -525,17 +559,17 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 def _resolve_participants(conversation: Dict[str, Any]):
     """Resolve the participants and chairman for a conversation.
 
-    For "classic" mode (or any conversation without a lineup), returns
-    (None, None) so the council module uses the classic global config.
-    For "personalities" mode, returns the snapshot lineup and the
-    chairman participant (stored separately, does NOT need to belong
-    to the lineup).
+    Both "classic" and "personalities" mode may carry a snapshot lineup (and
+    a separate chairman) stored on the conversation. If a lineup is present,
+    it is used directly — this lets classic mode support a user-selected
+    subset of COUNCIL_MODELS plus a chosen chairman. If no lineup is set,
+    returns (None, None) so the council module falls back to the global
+    classic config (all COUNCIL_MODELS + CHAIRMAN_MODEL).
     """
-    mode = conversation.get("mode", "classic")
     lineup = conversation.get("lineup", []) or []
     chairman = conversation.get("chairman")
 
-    if mode != "personalities" or not lineup:
+    if not lineup:
         return None, None
 
     # Chairman is stored as its own snapshot; fall back to first lineup

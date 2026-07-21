@@ -68,3 +68,51 @@
   color: var(--carbon);
   line-height: 1.6;
 }
+
+/* ---------- Failed model indicator ---------- */
+
+.tab-failed {
+  opacity: 0.75;
+}
+
+.tab-failed:hover {
+  border-color: var(--terracotta);
+  background: var(--blush);
+}
+
+.tab-failed.active {
+  border-color: var(--terracotta);
+  border-bottom-color: var(--ivory);
+  color: var(--terracotta);
+}
+
+.tab-error-dot {
+  color: var(--terracotta);
+  font-size: 13px;
+  margin-left: 2px;
+}
+
+.stage-error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--blush);
+  border: 1px solid var(--terracotta);
+  border-radius: 0.5rem;
+}
+
+.stage-error-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--terracotta);
+}
+
+.stage-error-message {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--terracotta);
+  line-height: 1.5;
+  word-break: break-word;
+}

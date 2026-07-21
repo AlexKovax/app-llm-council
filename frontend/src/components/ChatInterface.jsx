@@ -60,6 +60,7 @@ export default function ChatInterface({
 
   const isEmpty = conversation.messages.length === 0;
   const isFresh = isEmpty;
+  const lineupApplied = (conversation.lineup?.length || 0) > 0;
 
   return (
     <div className="chat-interface">
@@ -145,17 +146,21 @@ export default function ChatInterface({
         <form className="input-form" onSubmit={handleSubmit}>
           <textarea
             className="message-input"
-            placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+            placeholder={
+              lineupApplied
+                ? 'Ask your question... (Shift+Enter for new line, Enter to send)'
+                : '↑ Choose your council above and apply the lineup to start'
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading}
+            disabled={isLoading || !lineupApplied}
             rows={3}
           />
           <button
             type="submit"
             className="send-button"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || !lineupApplied}
           >
             Send
           </button>
@@ -170,17 +175,33 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
   const lineup = conversation.lineup || [];
   const initialChairman = conversation.chairman;
 
-  // If the conversation already has a personalities lineup applied, start in
-  // summary mode. Otherwise (classic default or fresh), start in edit mode.
-  const hasAppliedPersonalities =
-    initialMode === 'personalities' && lineup.length > 0;
-  const [isEditing, setIsEditing] = useState(!hasAppliedPersonalities);
+  // If the conversation already has a lineup applied (either classic or
+  // personalities), start in summary mode. Otherwise start in edit mode.
+  const hasAppliedLineup = lineup.length > 0;
+  const [isEditing, setIsEditing] = useState(!hasAppliedLineup);
 
   const [localMode, setLocalMode] = useState(initialMode);
+
+  // Personalities-mode state
   const [selectedIds, setSelectedIds] = useState(
     new Set(lineup.map((p) => p.id))
   );
   const [localChairmanId, setLocalChairmanId] = useState(initialChairman?.id || null);
+
+  // Classic-mode state: default to ALL council models selected, and the
+  // configured chairman model as the default judge.
+  const classicLineupModels = initialMode === 'classic'
+    ? lineup.map((p) => p.model)
+    : [];
+  const [selectedModels, setSelectedModels] = useState(
+    new Set(classicLineupModels.length > 0
+      ? classicLineupModels
+      : (config?.council_models || []))
+  );
+  const [localChairmanModel, setLocalChairmanModel] = useState(
+    initialChairman?.model || config?.chairman_model || null
+  );
+
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -196,25 +217,63 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
     });
   };
 
+  const toggleModel = (model) => {
+    setSelectedModels((prev) => {
+      const next = new Set(prev);
+      if (next.has(model)) {
+        next.delete(model);
+      } else {
+        next.add(model);
+      }
+      return next;
+    });
+  };
+
   const handleApply = async () => {
     setError('');
-    const chosen = personalities.filter((p) => selectedIds.has(p.id));
-
-    if (localMode !== 'classic' && chosen.length < 2) {
-      setError('Select at least 2 personalities (or switch to Classic mode).');
-      return;
-    }
-    if (localMode === 'personalities' && !localChairmanId) {
-      setError('Pick a chairman personality.');
-      return;
-    }
-
     setSaving(true);
     try {
       if (localMode === 'classic') {
-        await onSetLineup(conversation.id, { mode: 'classic', lineup: [], chairman: null });
+        const chosen = (config?.council_models || []).filter((m) => selectedModels.has(m));
+        if (chosen.length < 2) {
+          setError('Select at least 2 models (or switch to Personalities mode).');
+          setSaving(false);
+          return;
+        }
+        if (!localChairmanModel) {
+          setError('Pick a chairman model.');
+          setSaving(false);
+          return;
+        }
+        const lineupSnapshot = chosen.map((m) => ({
+          id: m,
+          name: null,
+          model: m,
+          system_prompt: null,
+        }));
+        const chairmanSnapshot = {
+          id: localChairmanModel,
+          name: null,
+          model: localChairmanModel,
+          system_prompt: null,
+        };
+        await onSetLineup(conversation.id, {
+          mode: 'classic',
+          lineup: lineupSnapshot,
+          chairman: chairmanSnapshot,
+        });
       } else {
-        // Snapshot the personalities into the conversation's lineup
+        const chosen = personalities.filter((p) => selectedIds.has(p.id));
+        if (chosen.length < 2) {
+          setError('Select at least 2 personalities (or switch to Classic mode).');
+          setSaving(false);
+          return;
+        }
+        if (!localChairmanId) {
+          setError('Pick a chairman personality.');
+          setSaving(false);
+          return;
+        }
         const lineupSnapshot = chosen.map((p) => ({
           id: p.id,
           name: p.name,
@@ -223,7 +282,6 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
           description: p.description || '',
           avatar_svg: p.avatar_svg || '',
         }));
-        // Chairman is a separate snapshot, independent of the lineup
         const chairmanP = personalities.find((p) => p.id === localChairmanId);
         const chairmanSnapshot = chairmanP
           ? {
@@ -249,16 +307,20 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
     }
   };
 
+  const shortName = (m) => (m ? (m.split('/')[1] || m) : m);
+
   // ---- Summary view (after Apply or when lineup already set) ----
   if (!isEditing) {
     const isPersonalities = conversation.mode === 'personalities' && lineup.length > 0;
-    const chairman = isPersonalities ? conversation.chairman : null;
+    const chairman = conversation.chairman;
 
     return (
       <div className="council-config lineup-summary">
         <div className="config-section">
           <div className="config-label">
-            {isPersonalities ? 'Stage 1 & 2 — Personalities' : 'Stage 1 & 2 — Council Members'}
+            {isPersonalities
+              ? 'Stage 1 & 2 — Personalities'
+              : 'Stage 1 & 2 — Council Members'}
           </div>
           <div className="config-models">
             {isPersonalities
@@ -268,9 +330,9 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
                     <span className="config-model-name">{p.name}</span>
                   </span>
                 ))
-              : config && config.council_models.map((model) => (
-                  <span key={model} className="config-model">
-                    {model.split('/')[1] || model}
+              : lineup.map((p) => (
+                  <span key={p.model} className="config-model">
+                    {shortName(p.model)}
                   </span>
                 ))
             }
@@ -289,7 +351,7 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
                     <span className="config-model-name">{chairman?.name || '—'}</span>
                   </>
                 )
-                : (config && (config.chairman_model.split('/')[1] || config.chairman_model))
+                : (chairman ? shortName(chairman.model) : '—')
               }
             </span>
           </div>
@@ -331,29 +393,66 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
       </div>
 
       {localMode === 'classic' ? (
-        <div className="config-section">
-          <div className="config-label">Stage 1 &amp; 2 — Council Members</div>
-          <div className="config-models">
-            {config && config.council_models.map((model) => (
-              <span key={model} className="config-model">
-                {model.split('/')[1] || model}
-              </span>
-            ))}
-          </div>
+        <>
           <div className="config-section">
-            <div className="config-label">Stage 3 — Chairman</div>
-            <div className="config-models">
-              <span className="config-model chairman">
-                {config && (config.chairman_model.split('/')[1] || config.chairman_model)}
-              </span>
+            <div className="config-label">
+              Stage 1 & 2 — Council Members ({selectedModels.size} selected)
+            </div>
+            <div className="personality-picker-grid">
+              {(config?.council_models || []).map((model) => {
+                const selected = selectedModels.has(model);
+                return (
+                  <label
+                    key={model}
+                    className={`picker-card ${selected ? 'selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleModel(model)}
+                      disabled={saving}
+                    />
+                    <div className="picker-card-header-row">
+                      <div className="picker-card-name">{shortName(model)}</div>
+                    </div>
+                    <div className="picker-card-model mono">{model}</div>
+                  </label>
+                );
+              })}
             </div>
           </div>
-        </div>
+
+          <div className="config-section">
+            <div className="config-label">Stage 3 — Chairman (any model)</div>
+            <div className="chairman-radio-list">
+              {(config?.council_models || []).map((model) => {
+                const inLineup = selectedModels.has(model);
+                return (
+                  <label
+                    key={model}
+                    className={`picker-radio ${localChairmanModel === model ? 'selected' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="chairman-classic"
+                      checked={localChairmanModel === model}
+                      onChange={() => setLocalChairmanModel(model)}
+                      disabled={saving}
+                    />
+                    <span className="picker-radio-name">{shortName(model)}</span>
+                    {inLineup && <span className="picker-radio-tag mono">in lineup</span>}
+                    <span className="picker-radio-model mono">{model}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </>
       ) : (
         <>
           <div className="config-section">
             <div className="config-label">
-              Stage 1 &amp; 2 — Personalities ({selectedIds.size} selected)
+              Stage 1 & 2 — Personalities ({selectedIds.size} selected)
             </div>
             {personalities.length === 0 ? (
               <p className="picker-empty">No personalities yet. Create some in the Personalities view.</p>
@@ -416,27 +515,21 @@ function LineupPicker({ conversation, config, personalities, onSetLineup }) {
       )}
 
       {error && <div className="picker-error">{error}</div>}
-      {localMode === 'personalities' && (
-        <>
-          <button
-            type="button"
-            className="apply-lineup-btn"
-            onClick={handleApply}
-            disabled={saving || selectedIds.size < 2 || !localChairmanId}
-          >
-            {saving ? 'Applying…' : 'Apply lineup'}
-          </button>
-          <p className="picker-hint">
-            The lineup is snapshot-saved on this conversation. Editing a personality later
-            won't change conversations that already use it.
-          </p>
-        </>
-      )}
-      {localMode === 'classic' && (
-        <p className="picker-hint">
-          Classic mode uses the default council. Just type your question below to start.
-        </p>
-      )}
+      <button
+        type="button"
+        className="apply-lineup-btn"
+        onClick={handleApply}
+        disabled={saving || (localMode === 'classic'
+          ? selectedModels.size < 2 || !localChairmanModel
+          : selectedIds.size < 2 || !localChairmanId)}
+      >
+        {saving ? 'Applying…' : 'Apply lineup'}
+      </button>
+      <p className="picker-hint">
+        {localMode === 'classic'
+          ? 'Pick which models deliberate in rounds 1 & 2, and which one judges the final synthesis in round 3.'
+          : 'The lineup is snapshot-saved on this conversation. Editing a personality later won\u2019t change conversations that already use it.'}
+      </p>
     </div>
   );
 }

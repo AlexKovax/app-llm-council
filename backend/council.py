@@ -61,7 +61,10 @@ async def stage1_collect_responses(
         participants: List of participant dicts. Defaults to classic config.
 
     Returns:
-        List of dicts with 'model', 'display_name', and 'response' keys
+        List of dicts with 'model', 'display_name', and either 'response'
+        (on success) or 'error' (on failure). Failed participants are kept
+        in the list so the UI can show which model failed and why, instead
+        of silently dropping them.
     """
     if participants is None:
         participants = classic_participants()
@@ -74,18 +77,27 @@ async def stage1_collect_responses(
     # Query all models in parallel
     responses = await query_models_parallel(models, messages, system_prompts=system_prompts)
 
-    # Format results, preserving participant order
+    # Format results, preserving participant order. Include failed entries
+    # (with response=None + error) so the UI can surface them.
     stage1_results = []
     for participant, model in zip(participants, models):
         response = responses.get(model)
-        if response is not None:  # Only include successful responses
-            stage1_results.append({
-                "model": model,
-                "display_name": _participant_display_name(participant),
-                "avatar_svg": _participant_avatar(participant),
-                "system_prompt": _participant_system_prompt(participant),
-                "response": response.get('content', ''),
-            })
+        entry = {
+            "model": model,
+            "display_name": _participant_display_name(participant),
+            "avatar_svg": _participant_avatar(participant),
+            "system_prompt": _participant_system_prompt(participant),
+            "response": None,
+        }
+        if response is not None:
+            entry["response"] = response.get('content')
+            if response.get('error'):
+                entry["error"] = response['error']
+        else:
+            # Legacy case (query_model returned None) — shouldn't happen
+            # with the current client, but kept for safety.
+            entry["error"] = "No response returned by the API client."
+        stage1_results.append(entry)
 
     return stage1_results
 
@@ -101,30 +113,38 @@ async def stage2_collect_rankings(
     The system prompt of each participant (if any) is applied during ranking
     so that a personality stays in character even while evaluating.
 
+    Failed Stage 1 responses are excluded from the ranking prompt (a model
+    cannot rank a missing response), but a participant whose own Stage 1
+    failed can still evaluate the others in Stage 2.
+
     Args:
         user_query: The original user query
-        stage1_results: Results from Stage 1
+        stage1_results: Results from Stage 1 (may include error entries)
         participants: List of participant dicts. Defaults to classic config.
 
     Returns:
-        Tuple of (rankings list, label_to_model mapping)
+        Tuple of (rankings list, label_to_model mapping). The rankings list
+        includes error entries for participants whose Stage 2 query failed,
+        so the UI can surface them instead of silently dropping them.
     """
     if participants is None:
         participants = classic_participants()
 
-    # Create anonymized labels for responses (Response A, Response B, etc.)
-    labels = [chr(65 + i) for i in range(len(stage1_results))]  # A, B, C, ...
+    # Only successful Stage 1 responses can be ranked. The anonymized labels
+    # (A, B, C, ...) are assigned in order to the successful responses only.
+    successful_stage1 = [r for r in stage1_results if r.get('response')]
+    labels = [chr(65 + i) for i in range(len(successful_stage1))]
 
     # Mapping from label -> display name (used for de-anonymization client-side).
     # We map to the display_name (personality name if set, else model name)
     # so the UI can render meaningful identities.
     label_to_model = {
         f"Response {label}": result['display_name']
-        for label, result in zip(labels, stage1_results)
+        for label, result in zip(labels, successful_stage1)
     }
 
-    # Build the ranking prompt
-    ranking_prompt = prompts.stage2_ranking_prompt(user_query, stage1_results)
+    # Build the ranking prompt from successful responses only
+    ranking_prompt = prompts.stage2_ranking_prompt(user_query, successful_stage1)
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
@@ -134,20 +154,27 @@ async def stage2_collect_rankings(
 
     responses = await query_models_parallel(models, messages, system_prompts=system_prompts)
 
-    # Format results, preserving participant order
+    # Format results, preserving participant order. Include failed entries
+    # so the UI can surface them.
     stage2_results = []
     for participant, model in zip(participants, models):
         response = responses.get(model)
+        entry = {
+            "model": model,
+            "display_name": _participant_display_name(participant),
+            "avatar_svg": _participant_avatar(participant),
+            "ranking": None,
+            "parsed_ranking": [],
+        }
         if response is not None:
-            full_text = response.get('content', '')
-            parsed = parse_ranking_from_text(full_text)
-            stage2_results.append({
-                "model": model,
-                "display_name": _participant_display_name(participant),
-                "avatar_svg": _participant_avatar(participant),
-                "ranking": full_text,
-                "parsed_ranking": parsed,
-            })
+            content = response.get('content') or ''
+            entry["ranking"] = content
+            entry["parsed_ranking"] = parse_ranking_from_text(content)
+            if response.get('error'):
+                entry["error"] = response['error']
+        else:
+            entry["error"] = "No response returned by the API client."
+        stage2_results.append(entry)
 
     return stage2_results, label_to_model
 
@@ -161,20 +188,30 @@ async def stage3_synthesize_final(
     """
     Stage 3: Chairman synthesizes final response.
 
+    Failed Stage 1 / Stage 2 entries are excluded from the chairman prompt
+    (only successful responses and rankings are sent to the chairman).
+
     Args:
         user_query: The original user query
-        stage1_results: Individual model responses from Stage 1
-        stage2_results: Rankings from Stage 2
+        stage1_results: Individual model responses from Stage 1 (may include errors)
+        stage2_results: Rankings from Stage 2 (may include errors)
         chairman: Chairman participant dict. Defaults to classic config.
 
     Returns:
-        Dict with 'model', 'display_name', and 'response' keys
+        Dict with 'model', 'display_name', and either 'response' (on success)
+        or 'error' (on failure).
     """
     if chairman is None:
         chairman = classic_chairman()
 
+    # Only send successful Stage 1 / Stage 2 entries to the chairman
+    successful_stage1 = [r for r in stage1_results if r.get('response')]
+    successful_stage2 = [r for r in stage2_results if r.get('ranking')]
+
     # Build comprehensive context for chairman
-    chairman_prompt = prompts.stage3_chairman_prompt(user_query, stage1_results, stage2_results)
+    chairman_prompt = prompts.stage3_chairman_prompt(
+        user_query, successful_stage1, successful_stage2
+    )
 
     messages = [{"role": "user", "content": chairman_prompt}]
 
@@ -185,21 +222,23 @@ async def stage3_synthesize_final(
         system_prompt=_participant_system_prompt(chairman),
     )
 
-    if response is None:
-        # Fallback if chairman fails
-        return {
-            "model": _participant_model(chairman),
-            "display_name": _participant_display_name(chairman),
-            "avatar_svg": _participant_avatar(chairman),
-            "response": "Error: Unable to generate final synthesis.",
-        }
-
-    return {
+    result = {
         "model": _participant_model(chairman),
         "display_name": _participant_display_name(chairman),
         "avatar_svg": _participant_avatar(chairman),
-        "response": response.get('content', ''),
+        "response": None,
     }
+
+    if response is None:
+        result["error"] = "No response returned by the API client."
+        return result
+
+    if response.get('error'):
+        result["error"] = response['error']
+        return result
+
+    result["response"] = response.get('content', '')
+    return result
 
 
 def parse_ranking_from_text(ranking_text: str) -> List[str]:
@@ -256,6 +295,10 @@ def calculate_aggregate_rankings(
     participant_positions = defaultdict(list)
 
     for ranking in stage2_results:
+        # Skip participants whose Stage 2 query failed (no ranking text)
+        if ranking.get('error') or not ranking.get('ranking'):
+            continue
+
         ranking_text = ranking['ranking']
 
         # Parse the ranking from the structured format
@@ -339,13 +382,21 @@ async def run_full_council(
     # Stage 1: Collect individual responses
     stage1_results = await stage1_collect_responses(user_query, participants)
 
-    # If no models responded successfully, return error
-    if not stage1_results:
-        return [], [], {
-            "model": _participant_model(chairman),
-            "display_name": _participant_display_name(chairman),
-            "response": "All models failed to respond. Please try again."
-        }, {}
+    # If every Stage 1 participant failed, there is nothing to rank or
+    # synthesize. Surface the chairman error so the UI can show it.
+    if not any(r.get('response') for r in stage1_results):
+        return (
+            stage1_results,
+            [],
+            {
+                "model": _participant_model(chairman),
+                "display_name": _participant_display_name(chairman),
+                "avatar_svg": _participant_avatar(chairman),
+                "response": None,
+                "error": "All council participants failed to respond. Please try again.",
+            },
+            {},
+        )
 
     # Stage 2: Collect rankings
     stage2_results, label_to_model = await stage2_collect_rankings(

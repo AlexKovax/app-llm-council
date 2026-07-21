@@ -16,30 +16,44 @@ export default function Stage1({ responses }) {
     return null;
   }
 
-  const active = responses[activeTab];
+  // Clamp active tab in case the previously active one got removed
+  const safeTab = Math.min(activeTab, responses.length - 1);
+  const active = responses[safeTab];
 
   return (
     <div className="stage stage1">
       <h3 className="stage-title">Stage 1: Individual Responses</h3>
 
       <div className="tabs">
-        {responses.map((resp, index) => (
-          <button
-            key={index}
-            className={`tab ${activeTab === index ? 'active' : ''}`}
-            onClick={() => setActiveTab(index)}
-          >
-            <Avatar svg={resp.avatar_svg} name={displayName(resp)} size={16} />
-            <span>{displayName(resp)}</span>
-          </button>
-        ))}
+        {responses.map((resp, index) => {
+          const failed = !resp.response && resp.error;
+          return (
+            <button
+              key={index}
+              className={`tab ${safeTab === index ? 'active' : ''} ${failed ? 'tab-failed' : ''}`}
+              onClick={() => setActiveTab(index)}
+              title={failed ? resp.error : undefined}
+            >
+              <Avatar svg={resp.avatar_svg} name={displayName(resp)} size={16} />
+              <span>{displayName(resp)}</span>
+              {failed && <span className="tab-error-dot" aria-label="failed">⚠</span>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="tab-content">
         <div className="model-name">{active.model}</div>
-        <div className="response-text markdown-content">
-          <ReactMarkdown>{active.response}</ReactMarkdown>
-        </div>
+        {active.response ? (
+          <div className="response-text markdown-content">
+            <ReactMarkdown>{active.response}</ReactMarkdown>
+          </div>
+        ) : (
+          <div className="stage-error">
+            <div className="stage-error-title">This model did not respond</div>
+            <div className="stage-error-message">{active.error || 'Unknown error'}</div>
+          </div>
+        )}
       </div>
     </div>
   );

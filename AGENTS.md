@@ -198,7 +198,7 @@ All backend modules use relative imports (e.g., `from .config import ...`) not a
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
 ### Model Configuration
-Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is GPT-5.5 as chairman per user preference.
+Models are hardcoded in `backend/config.py`. `COUNCIL_MODELS` is the pool of models offered as Stage 1 participants in classic mode (the user picks a subset at conversation creation, default: all). `CHAIRMAN_MODEL` is the default chairman selection in classic mode when the user has not explicitly picked one. Chairman can be the same or different from council members. The current default is `openai/gpt-5.6-sol` as chairman. Classic mode now also snapshots the chosen lineup + chairman onto the conversation (same `lineup`/`chairman` fields as personalities mode, with `name: null` and `system_prompt: null`), so `_resolve_participants` returns the stored lineup for both modes.
 
 ## Deployment
 
