@@ -66,7 +66,7 @@ export default function ChatInterface({
     <div className="chat-interface">
       <div className="messages-container">
         {isEmpty ? (
-          <div className="empty-state">
+          <div className="empty-state empty-state--picker">
             <h2>Consult the Council</h2>
             <p>Ask a question — multiple LLMs will deliberate and synthesize an answer</p>
 
